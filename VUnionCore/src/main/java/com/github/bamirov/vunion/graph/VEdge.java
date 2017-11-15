@@ -2,6 +2,7 @@ package com.github.bamirov.vunion.graph;
 
 import java.util.Optional;
 
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -15,9 +16,10 @@ public class VEdge<V extends Comparable<V>, I> extends VElement<V, I> {
 	protected final I vertexToId;
 	protected boolean isDirected;
 	
-	public VEdge(I elementId, V lastVersion, Optional<String> key, String content, 
+	@Builder
+	public VEdge(I elementId, V version, Optional<String> key, String content, 
 			I edgeTypeId, I vertexFromId, I vertexToId, boolean isDirected) {
-		super(elementId, lastVersion, key, content);
+		super(elementId, version, key, content);
 		this.edgeTypeId = edgeTypeId;
 		this.vertexFromId = vertexFromId;
 		this.vertexToId = vertexToId;

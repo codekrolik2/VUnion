@@ -17,9 +17,9 @@ public class VLink<V extends Comparable<V>, I> extends VElement<V, I> {
 	protected final I subgraphId;
 	protected boolean isTombstone;
 	
-	public VLink(I elementId, V lastVersion, Optional<String> key, String content, 
+	public VLink(I elementId, V version, Optional<String> key, String content, 
 			I linkElementId, V linkElementVersion, I subgraphId, boolean isTombstone) {
-		super(elementId, lastVersion, key, content);
+		super(elementId, version, key, content);
 		this.linkElementId = linkElementId;
 		this.linkElementVersion = linkElementVersion;
 		this.subgraphId = subgraphId;

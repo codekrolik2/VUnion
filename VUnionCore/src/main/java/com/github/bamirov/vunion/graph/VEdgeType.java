@@ -2,6 +2,7 @@ package com.github.bamirov.vunion.graph;
 
 import java.util.Optional;
 
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -12,9 +13,10 @@ import lombok.ToString;
 public class VEdgeType<V extends Comparable<V>, I> extends VElement<V, I> {
 	protected final String edgeTypeName;
 
-	public VEdgeType(I elementId, V lastVersion, Optional<String> key, String content,
+	@Builder
+	public VEdgeType(I elementId, V version, Optional<String> key, String content,
 			String edgeTypeName) {
-		super(elementId, lastVersion, key, content);
+		super(elementId, version, key, content);
 		this.edgeTypeName = edgeTypeName;
 	}
 }

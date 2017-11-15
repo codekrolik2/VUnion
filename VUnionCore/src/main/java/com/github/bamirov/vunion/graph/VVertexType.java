@@ -2,6 +2,7 @@ package com.github.bamirov.vunion.graph;
 
 import java.util.Optional;
 
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -12,9 +13,10 @@ import lombok.ToString;
 public class VVertexType<V extends Comparable<V>, I> extends VElement<V, I> {
 	protected final String vertexTypeName;
 
-	public VVertexType(I elementId, V lastVersion, Optional<String> key, String content, 
+	@Builder
+	public VVertexType(I elementId, V version, Optional<String> key, String content, 
 			String vertexTypeName) {
-		super(elementId, lastVersion, key, content);
+		super(elementId, version, key, content);
 		this.vertexTypeName = vertexTypeName;
 	}
 }

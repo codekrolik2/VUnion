@@ -1,4 +1,9 @@
+TODO: differentiate between minimal diffs (RAM based) and DB-based diffs with redundant version changes.
+TODO: consider an alternative architecture with a single actor with embedded version generator applying updates to DB in ordered way, a flavor of 
+
 VGraph operations
+
+NB: Those diffes may be simplefied for rAM-only use case, but outlined as they should appear in presence of fault-tolerant MySQL/Galera DB (certain updates are redundant to mitigate possible race conditions on Galera side).
 
 Let's define abstract Counter, that produces globally monotonically increasing sequence.
 
@@ -12,20 +17,21 @@ Counter will be used for version generation.
 
 Lets describe operations on VGraph:
 
-1) New vertex type, vertex +links to subgraph
+1) New vertex type, 2 vertexes +links to subgraph0
 Notes: VertexType should be created prior to vertex creation and linked to a subgraph prior to linking a vertex of that type.
 It's also ok to link vertexes and vertex types to a subgraph together in the same transaction.
 
+	Stream:
 	{
 		"from" : "[]",
 		"graphName" : "graph0",
 
 		"vertexTypes" : [
 			{
-				"elementId" : 1,
-				"version" : 1,
+				"elementId" : "1",
+				"version" : "1",
 				"key" : "vertexTypeKey1",
-				"content" : "<sample edge type>",
+				"content" : "<sample vertex type>",
 				
 				"vertexTypeName" : "vertexType0"
 			}
@@ -33,45 +39,69 @@ It's also ok to link vertexes and vertex types to a subgraph together in the sam
 		
 		"vertexes" : [
 			{
-				"elementId" : 2,
-				"version" : 2,
+				"elementId" : "2",
+				"version" : "2",
 				"key" : "vertexKey1",
 				"content" : "<sample vertex content>",
 				
-				"vertexTypeId" : 1
+				"vertexTypeId" : "1"
+			},
+			{
+				"elementId" : "5",
+				"version" : "5",
+				"key" : "vertexKey2",
+				"content" : "<sample vertex content>",
+				
+				"vertexTypeId" : "1"
 			}
 		],
 		
 		"subgraphs" : [
 			{
 				"name" : "subgraph0",
-				"subgraphVersionTo" :  4,
+				"subgraphVersionTo" :  "6",
 				
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 3,
+						"linkId" : "3",
 						"linkUpdate" : {
+							"elementId" : "3",
 							"key" : "linkKey1",
-							"version" : 3,
+							"version" : "3",
 							"content" : "<sample link content>",
 							"isTombstone" : false
 						},
-						"linkElementVersion" : {
-							"linkElementId" : 1,
-							"linkElementVersion" : 1
+						"linkedElementUpdate" : {
+							"linkedElementId" : "1",
+							"linkedElementVersion" : "1"
 						}
 					},
 					{
-						"id" : 4,
+						"linkId" : "4",
 						"linkUpdate" : {
+							"elementId" : "4",
 							"key" : "linkKey2",
-							"version" : 4,
+							"version" : "4",
 							"content" : "<sample link content>",
 							"isTombstone" : false
 						},
-						"linkElementVersion" : {
-							"linkElementId" : 2,
-							"linkElementVersion" : 2
+						"linkedElementUpdate" : {
+							"linkedElementId" : "2",
+							"linkedElementVersion" : "2"
+						}
+					},
+					{
+						"linkId" : "6",
+						"linkUpdate" : {
+							"elementId" : "6",
+							"key" : "linkKey3",
+							"version" : "6",
+							"content" : "<sample link content>",
+							"isTombstone" : false
+						},
+						"linkedElementUpdate" : {
+							"linkedElementId" : "5",
+							"linkedElementVersion" : "5"
 						}
 					}
 				]
@@ -81,20 +111,21 @@ It's also ok to link vertexes and vertex types to a subgraph together in the sam
 
 ---
 
-2) New edge type, edge +links to subgraph
+2) New edge type, edge +links to subgraph0
 Notes: EdgeType should be created prior to edge creation and linked to a subgraph prior to linking an edge of that type.
 
 Edge can only be linked if both of its vertexes are linked to subgraph.
 It's also ok to link edges, edge types and corresponding vertexes to a subgraph together in the same transaction.
 
+	Stream:
 	{
-		"from" : "[subgraph0:5]",
+		"from" : "[subgraph0:6]",
 		"graphName" : "graph0",
 		
 		"edgeTypes" : [
 			{
-				"elementId" : 6,
-				"version" : 6,
+				"elementId" : "7",
+				"version" : "7",
 				"key" : "edgeTypeKey1",
 				"content" : "<sample edge type>",
 				
@@ -104,15 +135,15 @@ It's also ok to link edges, edge types and corresponding vertexes to a subgraph 
 		
 		"edges" : [
 			{
-				"elementId" : 7,
-				"version" : 7,
+				"elementId" : "8",
+				"version" : "8",
 	
 				"key" : "edgeKey1",
 				"content" : "<sample edge content>",
 				
-				"edgeTypeId" : 6,
-				"vertexFromId" : 2,
-				"vertexToId" : 5,
+				"edgeTypeId" : "7",
+				"vertexFromId" : "2",
+				"vertexToId" : "5",
 				"isDirected" : false
 			}
 		],
@@ -120,33 +151,35 @@ It's also ok to link edges, edge types and corresponding vertexes to a subgraph 
 		"subgraphs" : [
 			{
 				"name" : "subgraph0",
-				"subgraphVersionTo" : 9,
+				"subgraphVersionTo" : "10",
 				 
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 8,
+						"linkId" : "9",
 						"linkUpdate" : {
-							"key" : "linkKey3",
-							"version" : 8,
+							"elementId" : "9",
+							"key" : "linkKey4",
+							"version" : "9",
 							"content" : "<sample link content>",
 							"isTombstone" : false
 						},
-						"linkElementVersion" : {
-							"linkElementId" : 6,
-							"linkElementVersion" : 6
+						"linkedElementUpdate" : {
+							"linkedElementId" : "7",
+							"linkedElementVersion" : "7"
 						}
 					},
 					{
-						"id" : 9,
+						"linkId" : "10",
 						"linkUpdate" : {
-							"key" : "linkKey4",
-							"version" : 9,
+							"elementId" : "10",
+							"key" : "linkKey5",
+							"version" : "10",
 							"content" : "<sample link content>",
 							"isTombstone" : false
 						},
-						"linkElementVersion" : {
-							"linkElementId" : 7,
-							"linkElementVersion" : 7
+						"linkedElementUpdate" : {
+							"linkedElementId" : "8",
+							"linkedElementVersion" : "8"
 						}
 					}
 				]
@@ -169,16 +202,17 @@ Since we know that those elements were previously linked to _subgraph0_, we can 
 It's still possible to reason which elements exactly were filtered out, but it's more challenging and will require creating complicated filter-dependent diff retrieval, so as of now it seems as premature optimisation.
 It seems most reasonable to address and optimize it later, during implementation of stream filters.
 
+	Stream:
 	{
-		"from" : "[subgraph0:9]",
+		"from" : "[subgraph0:10]",
 		"graphName" : "graph0",
 		
 		"vertexTypes" : [
 			{
-				"elementId" : 1,
-				"version" : 1,
+				"elementId" : "1",
+				"version" : "1",
 				"key" : "vertexTypeKey1",
-				"content" : "<sample edge type>",
+				"content" : "<sample vertex type>",
 				
 				"vertexTypeName" : "vertexType0"
 			}
@@ -186,27 +220,27 @@ It seems most reasonable to address and optimize it later, during implementation
 		
 		"vertexes" : [
 			{
-				"elementId" : 2,
-				"version" : 2,
+				"elementId" : "2",
+				"version" : "2",
 				"key" : "vertexKey1",
 				"content" : "<sample vertex content>",
 				
-				"vertexTypeId" : 1
+				"vertexTypeId" : "1"
 			},
 			{
-				"elementId" : 5,
-				"version" : 5,
+				"elementId" : "5",
+				"version" : "5",
 				"key" : "vertexKey2",
 				"content" : "<sample vertex content>",
 				
-				"vertexTypeId" : 1
+				"vertexTypeId" : "1"
 			}
 		],
 		
 		"edgeTypes" : [
 			{
-				"elementId" : 6,
-				"version" : 6,
+				"elementId" : "7",
+				"version" : "7",
 				"key" : "edgeTypeKey1",
 				"content" : "<sample edge type>",
 				
@@ -216,15 +250,15 @@ It seems most reasonable to address and optimize it later, during implementation
 		
 		"edges" : [
 			{
-				"elementId" : 7,
-				"version" : 7,
+				"elementId" : "8",
+				"version" : "8",
 	
 				"key" : "edgeKey1",
 				"content" : "<sample edge content>",
 				
-				"edgeTypeId" : 6,
-				"vertexFromId" : 2,
-				"vertexToId" : 5,
+				"edgeTypeId" : "7",
+				"vertexFromId" : "2",
+				"vertexToId" : "5",
 				"isDirected" : false
 			}
 		],
@@ -232,72 +266,77 @@ It seems most reasonable to address and optimize it later, during implementation
 		"subgraphs" : [
 			{
 				"name" : "subgraph1",
-				"subgraphVersionTo" : 14,
+				"subgraphVersionTo" : "15",
 			
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 10,
+						"linkId" : "11",
 						"linkUpdate" : {
-							"key" : "linkKey5",
-							"version" : 10,
-							"content" : "<sample link content>",
-							"isTombstone" : false
-						},
-						"linkElementVersion" : {
-							"linkElementId" : 1,
-							"linkElementVersion" : 1
-						}
-					},
-					{
-						"id" : 11,
-						"linkUpdate" : {
+							"elementId" : "11",
 							"key" : "linkKey6",
-							"version" : 11,
+							"version" : "11",
 							"content" : "<sample link content>",
 							"isTombstone" : false
 						},
-						"linkElementVersion" : {
-							"linkElementId" : 2,
-							"linkElementVersion" : 2
+						"linkedElementUpdate" : {
+							"linkedElementId" : "1",
+							"linkedElementVersion" : "1"
 						}
 					},
 					{
-						"id" : 12,
+						"linkId" : "12",
 						"linkUpdate" : {
+							"elementId" : "12",
 							"key" : "linkKey7",
-							"version" : 12,
+							"version" : "12",
 							"content" : "<sample link content>",
 							"isTombstone" : false
 						},
-						"linkElementVersion" : {
-							"linkElementId" : 5,
-							"linkElementVersion" : 5
+						"linkedElementUpdate" : {
+							"linkedElementId" : "2",
+							"linkedElementVersion" : "2"
 						}
 					},
 					{
-						"id" : 13,
+						"linkId" : "13",
 						"linkUpdate" : {
+							"elementId" : "13",
 							"key" : "linkKey8",
-							"version" : 13,
+							"version" : "13",
 							"content" : "<sample link content>",
 							"isTombstone" : false
 						},
-						"linkElementVersion" : {
-							"linkElementId" : 6,
-							"linkElementVersion" : 6
+						"linkedElementUpdate" : {
+							"linkedElementId" : "5",
+							"linkedElementVersion" : "5"
 						}
 					},
 					{
-						"id" : 14,
+						"linkId" : "14",
 						"linkUpdate" : {
+							"elementId" : "14",
 							"key" : "linkKey9",
-							"version" : 14,
+							"version" : "14",
 							"content" : "<sample link content>",
 							"isTombstone" : false
 						},
-						"linkElementVersion" : {
-							"linkElementId" : 7,
-							"linkElementVersion" : 7
+						"linkedElementUpdate" : {
+							"linkedElementId" : "7",
+							"linkedElementVersion" : "7"
+						}
+					},
+					{
+						"linkId" : "15",
+						"linkUpdate" : {
+							"elementId" : "15",
+							"key" : "linkKey10",
+							"version" : "15",
+							"content" : "<sample link content>",
+							"isTombstone" : false
+						},
+						"linkedElementUpdate" : {
+							"linkedElementId" : "8",
+							"linkedElementVersion" : "8"
 						}
 					},
 				]
@@ -307,49 +346,50 @@ It seems most reasonable to address and optimize it later, during implementation
 
 ---
 
-4) Vertex updated.
+4) Vertex updated
 All three options - content updated, key updated and type updated should return the whole updated vertex structure, as well as corresponding link updates for all linked subgraphs
 
+	Stream:
 	{
-		"from" : "[subgraph0:9,subgraph1:14]",
+		"from" : "[subgraph0:10,subgraph1:15]",
 		"graphName" : "graph0",
 
 		"vertexes" : [
 			{
-				"elementId" : 2,
-				"version" : 15,
+				"elementId" : "2",
+				"version" : "16",
 				"key" : "vertexKey1-1",
 				"content" : "<sample vertex content-1>",
 				
-				"vertexTypeId" : 1
+				"vertexTypeId" : "1"
 			}
 		],
 		
 		"subgraphs" : [
 			{
 				"name" : "subgraph0",
-				"subgraphVersionTo" : 15,
+				"subgraphVersionTo" : "16",
 			
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 4,
-						"linkElementVersion" : {
-							"linkElementId" : 1,
-							"linkElementVersion" : 15
+						"linkId" : "4",
+						"linkedElementUpdate" : {
+							"linkedElementId" : "2",
+							"linkedElementVersion" : "16"
 						}
 					}
 				]
 			},
 			{
 				"name" : "subgraph1",
-				"subgraphVersionTo" : 15,
+				"subgraphVersionTo" : "16",
 			
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 11,
-						"linkElementVersion" : {
-							"linkElementId" : 1,
-							"linkElementVersion" : 15
+						"linkId" : "12",
+						"linkedElementUpdate" : {
+							"linkedElementId" : "2",
+							"linkedElementVersion" : "16"
 						}
 					}
 				]
@@ -360,23 +400,25 @@ All three options - content updated, key updated and type updated should return 
 ---
 
 5) Edge updated
-All options - content updated, key updated, vertex from updated, vertex to updated, type updated and isDirected updated should return the whole updated edge structure, as well as corresponding link updates for all connected subgraphs
+All options - content updated, key updated, type updated and isDirected updated should return the whole updated edge structure, as well as corresponding link updates for all connected subgraphs
+NB: current vision is that VertexFrom and VertexTo are immutable.
 
+	Stream:
 	{
-		"from" : "[subgraph0:15,subgraph1:15]",
+		"from" : "[subgraph0:16,subgraph1:16]",
 		"graphName" : "graph0",
 
 		"edges" : [
 			{
-				"elementId" : 7,
-				"version" : 16,
+				"elementId" : "8",
+				"version" : "17",
 	
 				"key" : "edgeKey1-1",
 				"content" : "<sample edge content-1>",
 				
-				"edgeTypeId" : 6,
-				"vertexFromId" : 1,
-				"vertexToId" : 3,
+				"edgeTypeId" : "7",
+				"vertexFromId" : "2",
+				"vertexToId" : "5",
 				"isDirected" : true
 			}
 		],
@@ -384,28 +426,28 @@ All options - content updated, key updated, vertex from updated, vertex to updat
 		"subgraphs" : [
 			{
 				"name" : "subgraph0",
-				"subgraphVersionTo" : 16,
+				"subgraphVersionTo" : "17",
 			
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 5,
-						"linkElementVersion" : {
-							"linkElementId" : 7,
-							"linkElementVersion" : 16
+						"linkId" : "10",
+						"linkedElementUpdate" : {
+							"linkedElementId" : "8",
+							"linkedElementVersion" : "17"
 						}
 					}
 				]
 			},
 			{
 				"name" : "subgraph1",
-				"subgraphVersionTo" : 16,
+				"subgraphVersionTo" : "17",
 			
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 8,
-						"linkElementVersion" : {
-							"linkElementId" : 7,
-							"linkElementVersion" : 16
+						"linkId" : "15",
+						"linkedElementUpdate" : {
+							"linkedElementId" : "8",
+							"linkedElementVersion" : "17"
 						}
 					}
 				]
@@ -418,6 +460,7 @@ All options - content updated, key updated, vertex from updated, vertex to updat
 6) Link updated
 Notes:
 a. All options - content updated, key updated and isTombstone updated should return the updated link structure
+NB: current vision is that LinkedElementId is immutable.
 
 b. Marking link as tombstone: 
 b.1. Vertex link can only be tombstoned if all connected edges are tombstoned.
@@ -440,21 +483,23 @@ Logically that refers to the fact that an active (not tombstoned) edge can't poi
 
 c.3. I.e. untombstone types first, vertexes after, and then edges (it's also ok to untombstone connected types, vertexes and edges together in the same transaction).
 
+	Stream:
 	{
-		"from" : "[subgraph0:16,subgraph1:16]",
+		"from" : "[subgraph0:17,subgraph1:17]",
 		"graphName" : "graph0",
 
 		"subgraphs" : [
 			{
 				"name" : "subgraph0",
-				"subgraphVersionTo" : 17,
+				"subgraphVersionTo" : "18",
 			
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 4,
+						"linkId" : "10",
 						"linkUpdate" : {
-							"key" : "linkKey1-1",
-							"version" : 17,
+							"elementId" : "10",
+							"key" : "linkKey5-1",
+							"version" : "18",
 							"content" : "<sample link content-1>",
 							"isTombstone" : true
 						}
@@ -465,19 +510,20 @@ c.3. I.e. untombstone types first, vertexes after, and then edges (it's also ok 
 	}
 
 ---
- 
+
 7) GraphElement
 7.1 GraphElement created
 
+	Stream:
 	{
-		"from" : "[subgraph0:17,subgraph1:16]",
+		"from" : "[subgraph0:18,subgraph1:17]",
 		"graphName" : "graph0",
 
 		"graphElementRecord" : {
-			"graphElementUpdateVersion" : 18,
+			"graphElementUpdateVersion" : "19",
 			"graphElement" : {
-				"elementId" : 15,
-				"version" : 18,
+				"elementId" : "16",
+				"version" : "19",
 
 				"key" : "graphElementKey1",
 				"content" : "<sample graph element content>"
@@ -487,15 +533,16 @@ c.3. I.e. untombstone types first, vertexes after, and then edges (it's also ok 
 
 7.2 GraphElement updated
 
+	Stream:
 	{
-		"from" : "[18,subgraph0:17,subgraph1:16]",
+		"from" : "[19,subgraph0:18,subgraph1:17]",
 		"graphName" : "graph0",
 
 		"graphElementRecord" : {
-			"graphElementUpdateVersion" : 19,
+			"graphElementUpdateVersion" : "20",
 			"graphElement" : {
-				"elementId" : 15,
-				"version" : 19,
+				"elementId" : "16",
+				"version" : "20",
 
 				"key" : "graphElementKey1-1",
 				"content" : "<sample graph element content-1>"
@@ -508,20 +555,21 @@ c.3. I.e. untombstone types first, vertexes after, and then edges (it's also ok 
 8) SubgraphElement 
 8.1 SubgraphElement created
 
+	Stream:
 	{
-		"from" : "[19,subgraph0:17,subgraph1:16]",
+		"from" : "[20,subgraph0:18,subgraph1:17]",
 		"graphName" : "graph0",
 
 		"subgraphs" : [
 			{
 				"name" : "subgraph0",
-				"subgraphVersionTo" : 20,
+				"subgraphVersionTo" : "21",
 			
 				"subgraphElementRecord" : {
-					"subgraphElementUpdateVersion" : 20,
+					"subgraphElementUpdateVersion" : "21",
 					"subgraphElement" : {
-						"elementId" : 16,
-						"version" : 20,
+						"elementId" : "17",
+						"version" : "21",
 
 						"key" : "subgraphElementKey1",
 						"content" : "<sample subgraph element content>"
@@ -533,20 +581,21 @@ c.3. I.e. untombstone types first, vertexes after, and then edges (it's also ok 
 
 8.2 SubgraphElement updated
 
+	Stream:
 	{
-		"from" : "[19,subgraph0:20,subgraph1:16]",
+		"from" : "[20,subgraph0:21,subgraph1:17]",
 		"graphName" : "graph0",
 
 		"subgraphs" : [
 			{
 				"name" : "subgraph0",
-				"subgraphVersionTo" : 21,
+				"subgraphVersionTo" : "22",
 			
 				"subgraphElementRecord" : {
-					"subgraphElementUpdateVersion" : 21,
+					"subgraphElementUpdateVersion" : "22",
 					"subgraphElement" : {
-						"elementId" : 16,
-						"version" : 21,
+						"elementId" : "17",
+						"version" : "22",
 
 						"key" : "subgraphElementKey1-1",
 						"content" : "<sample subgraph element content-1>"
@@ -560,16 +609,17 @@ c.3. I.e. untombstone types first, vertexes after, and then edges (it's also ok 
 
 9) Vertex Type renamed
 
+	Stream:
 	{
-		"from" : "[19,subgraph0:21,subgraph1:16]",
+		"from" : "[20,subgraph0:22,subgraph1:17]",
 		"graphName" : "graph0",
 
 		"vertexTypes" : [
 			{
-				"elementId" : 1,
-				"version" : 22,
+				"elementId" : "1",
+				"version" : "23",
 				"key" : "vertexTypeKey1-1",
-				"content" : "<sample edge type>",
+				"content" : "<sample vertex type-1>",
 				
 				"vertexTypeName" : "vertexType0-1"
 			}
@@ -578,28 +628,28 @@ c.3. I.e. untombstone types first, vertexes after, and then edges (it's also ok 
 		"subgraphs" : [
 			{
 				"name" : "subgraph0",
-				"subgraphVersionTo" : 22,
+				"subgraphVersionTo" : "23",
 			
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 3,
-						"linkElementVersion" : {
-							"linkElementId" : 1,
-							"linkElementVersion" : 22
+						"linkId" : "3",
+						"linkedElementUpdate" : {
+							"linkedElementId" : "1",
+							"linkedElementVersion" : "23"
 						}
 					},
 				]
 			},
 			{
 				"name" : "subgraph1",
-				"subgraphVersionTo" : 22,
+				"subgraphVersionTo" : "23",
 			
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 10,
-						"linkElementVersion" : {
-							"linkElementId" : 1,
-							"linkElementVersion" : 22
+						"linkId" : "11",
+						"linkedElementUpdate" : {
+							"linkedElementId" : "1",
+							"linkedElementVersion" : "23"
 						}
 					}
 				]
@@ -611,46 +661,47 @@ c.3. I.e. untombstone types first, vertexes after, and then edges (it's also ok 
 
 10) Edge Type renamed
 
+	Stream:
 	{
-		"from" : "[19,subgraph0:22,subgraph1:22]",
+		"from" : "[20,subgraph0:23,subgraph1:23]",
 		"graphName" : "graph0",
 
 		"edgeTypes" : [
 			{
-				"elementId" : 6,
-				"version" : 23,
+				"elementId" : "7",
+				"version" : "24",
 				"key" : "edgeTypeKey1-1",
 				"content" : "<sample edge type-1>",
 				
-				"edgeTypeName" : "edgeType2"
+				"edgeTypeName" : "edgeType0-1"
 			}
 		],
 		
 		"subgraphs" : [
 			{
 				"name" : "subgraph0",
-				"subgraphVersionTo" : 23,
+				"subgraphVersionTo" : "24",
 			
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 8,
-						"linkElementVersion" : {
-							"linkElementId" : 6,
-							"linkElementVersion" : 23
+						"linkId" : "9",
+						"linkedElementUpdate" : {
+							"linkedElementId" : "7",
+							"linkedElementVersion" : "24"
 						}
 					}
 				]
 			},
 			{
 				"name" : "subgraph1",
-				"subgraphVersionTo" : 23,
+				"subgraphVersionTo" : "24",
 			
-				"updates" : [
+				"linkUpdates" : [
 					{
-						"id" : 13,
-						"linkElementVersion" : {
-							"linkElementId" : 6,
-							"linkElementVersion" : 23
+						"linkId" : "14",
+						"linkedElementUpdate" : {
+							"linkedElementId" : "7",
+							"linkedElementVersion" : "24"
 						}
 					}
 				]
@@ -675,19 +726,20 @@ d. Involves sending element sync list to a given subgraph
 e. deleting an element from all subgraphs effectively removes an attached element from active elements set, and therefore from RAM or DB cache.
 Such element may still exist in SourceDB and later be relinked to some subgraph, but for all stream recepients (RAM cache; proxy DBs) is unreachable.
 
-	//remove link id 14 / edge id 7
+	Stream:
+	//remove link id 15 / edge id 8
 	{
-		"from" : "[19,subgraph0:23,subgraph1:23]",
+		"from" : "[20,subgraph0:24,subgraph1:24]",
 		"graphName" : "graph0",
 
 		"subgraphs" : [
 			{
-				"name" : "subgraph0",
-				"subgraphVersionTo" : 24,
+				"name" : "subgraph1",
+				"subgraphVersionTo" : "25",
 			
 				"elementSync" : {
-					"elementSyncVersion" : 24,
-					"elementIds" : [ 10, 11, 12, 13 ]
+					"elementSyncVersion" : "25",
+					"elementIds" : [ "11", "12", "13", "14" ]
 				}
 			}
 		]
@@ -709,13 +761,14 @@ Notes:
 a. involves sending Subgraph sync list for a graph
 b. Orphaned elements should be removed from cache, similarly to 11.e
 
+	Stream:
 	//remove subgraph1
 	{
-		"from" : "[19,subgraph0:24,subgraph1:23]",
+		"from" : "[20,subgraph0:24,subgraph1:25]",
 		"graphName" : "graph0",
 		
 		"subgraphSync" : {
-			"subgraphSyncVersion" : 25,
+			"subgraphSyncVersion" : "26",
 			"subgraphNames" : [ "subgraph0" ]
 		}
 	}
@@ -724,12 +777,13 @@ b. Orphaned elements should be removed from cache, similarly to 11.e
 
 14) GraphElement deleted
 
+	Stream:
 	{
-		"from" : "[19,subgraph0:25]",
+		"from" : "[26,subgraph0:24]",
 		"graphName" : "graph0",
 		
 		"graphElementRecord" : {
-			"graphElementUpdateVersion" : 26
+			"graphElementUpdateVersion" : "27"
 		}
 	}
 
@@ -737,17 +791,18 @@ b. Orphaned elements should be removed from cache, similarly to 11.e
 
 15) SubgraphElement deleted
 
+	Stream:
 	{
-		"from" : "[26,subgraph0:25]",
+		"from" : "[27,subgraph0:24]",
 		"graphName" : "graph0",
 		
 		"subgraphs" : [
 			{
 				"name" : "subgraph0",
-				"subgraphVersionTo" : 27,
+				"subgraphVersionTo" : "28",
 				
 				"subgraphElementRecord" : {
-					"subgraphElementUpdateVersion" : 27
+					"subgraphElementUpdateVersion" : "28"
 				}
 			}
 		]
@@ -773,24 +828,26 @@ Therefore, to bring cache contents up to date, the following needs to be done:
 
 16.1 Destroy graph
 
+	Stream:
 	{
-		"from" : "[19,subgraph0:27]",
+		"from" : "[27,subgraph0:28]",
 		"graphName" : "graph0",
 		
 		"destroyedRecord" : {
-			"destroyRecoverVersion" : 28,
+			"destroyRecoverVersion" : "29",
 			"isDestroyed" : true
 		}
 	}
 
 16.2 Recover graph
 
+	Stream:
 	{
-		"from" : "[28]",
+		"from" : "[29]",
 		"graphName" : "graph0",
 		
 		"destroyedRecord" : {
-			"destroyRecoverVersion" : 29,
+			"destroyRecoverVersion" : "30",
 			"isDestroyed" : false
 		},
 		

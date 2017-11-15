@@ -1,9 +1,10 @@
 package com.github.bamirov.vunion.graphstream.serialization;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Optional;
 
 import org.junit.Test;
-import static org.junit.Assert.assertEquals;
 
 import com.github.bamirov.vunion.exceptions.MalformedVersionException;
 import com.github.bamirov.vunion.graphstream.serialization.longs.LongStringGraphVersionSerializer;
@@ -47,5 +48,29 @@ public class VersionSerializerTest {
 		assertEquals(version5, version4Tst);
 		assertEquals(version6, version2Tst);
 		assertEquals(version7, version3Tst);
+		
+		VGraphVersion<Long> version1Prime = versionSerializer.deserializeGraphVersion(
+				versionSerializer.serializeGraphVersion(version1));
+		VGraphVersion<Long> version2Prime = versionSerializer.deserializeGraphVersion(
+				versionSerializer.serializeGraphVersion(version2));
+		VGraphVersion<Long> version3Prime = versionSerializer.deserializeGraphVersion(
+				versionSerializer.serializeGraphVersion(version3));
+		VGraphVersion<Long> version4Prime = versionSerializer.deserializeGraphVersion(
+				versionSerializer.serializeGraphVersion(version4));
+		
+		VGraphVersion<Long> version5Prime = versionSerializer.deserializeGraphVersion(
+				versionSerializer.serializeGraphVersion(version5));
+		VGraphVersion<Long> version6Prime = versionSerializer.deserializeGraphVersion(
+				versionSerializer.serializeGraphVersion(version6));
+		VGraphVersion<Long> version7Prime = versionSerializer.deserializeGraphVersion(
+				versionSerializer.serializeGraphVersion(version7));
+		
+		assertEquals(version1Prime, version1Prime);
+		assertEquals(version2Prime, version2Prime);
+		assertEquals(version3Prime, version3Prime);
+		assertEquals(version4Prime, version4Prime);
+		assertEquals(version5Prime, version5Prime);
+		assertEquals(version6Prime, version6Prime);
+		assertEquals(version7Prime, version7Prime);
 	}
 }

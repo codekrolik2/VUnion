@@ -14,9 +14,9 @@ import lombok.ToString;
 public class VLinkUpdate<V extends Comparable<V>, I> extends VElement<V, I> {
 	private final boolean isTombstone;
 
-	public VLinkUpdate(I elementId, V lastVersion, Optional<String> key, String content, 
+	public VLinkUpdate(I elementId, V version, Optional<String> key, String content, 
 			boolean isTombstone) {
-		super(elementId, lastVersion, key, content);
+		super(elementId, version, key, content);
 		this.isTombstone = isTombstone;
 	}
 }
