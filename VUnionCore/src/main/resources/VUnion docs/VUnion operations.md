@@ -1,5 +1,5 @@
 TODO: differentiate between minimal diffs (RAM based) and DB-based diffs with redundant version changes.
-TODO: consider an alternative architecture with a single actor with embedded version generator applying updates to DB in ordered way, a flavor of 
+TODO: consider an alternative architecture with a single actor with embedded version generator applying updates to DB in ordered way, a flavor of Proxy persistence thread
 
 VGraph operations
 

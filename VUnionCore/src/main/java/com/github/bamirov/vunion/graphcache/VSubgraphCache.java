@@ -14,16 +14,16 @@ import com.github.bamirov.vunion.graph.VSubgraph;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 
 @Getter
-@Setter
 @AllArgsConstructor
 @RequiredArgsConstructor
 class VSubgraphCache<V extends Comparable<V>, I> {
 	protected String name;
-	protected V maxElementVersion;
-	//maxElementVersion will not necessarily corellate with existing links,
+	
+	//subgraphVersionTo is always max subgraphVersion
+	protected V subgraphVersionTo;
+	//subgraphVersionTo will not necessarily corellate with existing links,
 	//because I want to allow filters that will filter out links and elements inside subgraphs 
 	
 	protected V elementSyncVersion;
@@ -33,10 +33,11 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 	
 	protected Optional<VSubgraph<V, I>> subgraphElement;
 
+	//TODO: this is probably not needed, since subgraphVersionTo is always max subgraphVersion
 	public V getSubgraphVersion() {
 		@SuppressWarnings("unchecked")
 		List<V> list = (List<V>)Arrays.asList(new Object[] {
-				maxElementVersion,
+				subgraphVersionTo,
 				elementSyncVersion,
 				subgraphElement.isPresent() ? subgraphElement.get() : null
 		});
