@@ -10,9 +10,9 @@ import lombok.ToString;
 @Getter
 @ToString(callSuper=true)
 @EqualsAndHashCode(callSuper=true)
-public class VGraph<V extends Comparable<V>, I> extends VElement<V, I> {
+public class VGraphElement<V extends Comparable<V>, I> extends VElement<V, I> {
 	@Builder
-	public VGraph(I elementId, V version, Optional<String> key, String content) {
+	public VGraphElement(I elementId, V version, Optional<String> key, String content) {
 		super(elementId, version, key, content);
 	}
 }

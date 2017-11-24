@@ -118,7 +118,7 @@ Race condition that can be caused by deleting a link concurrently with updating 
 ---
 
 3) Graph updates
-Subgraph updates come in 3 different forms: subgraph deletion, graph destruction/revival and graph element update.
+Graph updates come in 3 different forms: subgraph deletion, graph destruction/revival and graph element update.
 
 Only graph element updates are local to Graph, both other types of updates are connected to altering subgraph structure.
 In case of destruction/revival it may not necessarily be physical destruction of DB records, which can still be kept for history or Graph recovery purposes, but for stream/caching it's physical destruction of all contents, except for Graph record itself.
@@ -187,3 +187,37 @@ Same logic as in (d), except in this case it's clearly deletion of SG2 (because 
 g. V1=[20], V2=[15,SG1=21]
 In this case V1 has updates since V2, as well as V2 has updates since V1.
 Just as before, V1's graph update version = 20 means that before version 20 subgraphs might've been deleted, however SG1 version is 21, which means that whatever updates SG1 has, occured after 20 and therefore missing from V1, since it doesn't have a corresponding version record to SG1.
+
+---
+
+5) Race conditions with subgraph creation
+
+Some operations like GraphElement update might happen in parallel with creation of new subgraphs, resulting in race conditions involving graph version and new subgraph version.
+Let's say we have the following start version [50, SG1=60].
+
+5.1. Let's imagine the following is happening in parallel: 
+
+1. Subgraph SG2 is getting created, version 65
+2. GraphElement update updates graph version to 70
+
+Those actions may result in one of the following version updates flow:
+
+	a. [50, SG1=60] -> [50, SG1=60, SG2=65] -> [70, SG1=60, SG2=65]
+	b. [50, SG1=60] -> [70, SG1=60] -> [70, SG1=60, SG2=65]
+
+in particular, flow (b) looks strange, because we're updating version with GraphV = 70 by adding a record for SG2=65. As of now I don't see any negative side-effect like data corruption that could come out of this update, except for it's not a very intuitive version update mechanics, since we defined 4.f.
+Having said that, graph versions in 4.f. are different, while our flow (b) shows the same graph version, which means it's effectively ignored and therefore a version with additional subgraphs is considered as having updates since version without such graph records.
+
+TODO: this might have some side-effects I don't see ATM. As defined earlier, it's fine to have independent updates of subgraphs, but I didn't think that much about allowing such updates for graph version and subgraph versions. Requires more research and if needed, combining subgraph addition with graph version update, similar to 3.1.
+
+5.2. The opposite can also happen
+
+1. Subgraph SG2 is getting created, version 70
+2. GraphElement update updates graph version to 65
+
+Those actions may result in one of the following version updates flow:
+
+	a. [50, SG1=60] -> [50, SG1=60, SG2=70] -> [65, SG1=60, SG2=70]
+	b. [50, SG1=60] -> [65, SG1=60] -> [65, SG1=60, SG2=70]
+
+Flow (a) will result in updating subgraph version SG2=70 prior to updating graph version to 65.

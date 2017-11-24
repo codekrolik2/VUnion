@@ -44,6 +44,7 @@ public class GraphJSONStrDiffCreator {
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"3\",\n" + 
+				"						\"linkedElementId\" : \"1\",\n" + 
 				"						\"linkUpdate\" : {\n" + 
 				"							\"elementId\" : \"3\",\n" + 
 				"							\"key\" : \"linkKey1\",\n" + 
@@ -51,13 +52,11 @@ public class GraphJSONStrDiffCreator {
 				"							\"content\" : \"<sample link content>\",\n" + 
 				"							\"isTombstone\" : false\n" + 
 				"						},\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"1\",\n" + 
-				"							\"linkedElementVersion\" : \"1\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementVersion\" : \"1\"\n" + 
 				"					},\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"4\",\n" + 
+				"						\"linkedElementId\" : \"2\",\n" + 
 				"						\"linkUpdate\" : {\n" + 
 				"							\"elementId\" : \"4\",\n" + 
 				"							\"key\" : \"linkKey2\",\n" + 
@@ -65,13 +64,11 @@ public class GraphJSONStrDiffCreator {
 				"							\"content\" : \"<sample link content>\",\n" + 
 				"							\"isTombstone\" : false\n" + 
 				"						},\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"2\",\n" + 
-				"							\"linkedElementVersion\" : \"2\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementVersion\" : \"2\"\n" + 
 				"					},\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"6\",\n" + 
+				"						\"linkedElementId\" : \"5\",\n" + 
 				"						\"linkUpdate\" : {\n" + 
 				"							\"elementId\" : \"6\",\n" + 
 				"							\"key\" : \"linkKey3\",\n" + 
@@ -79,10 +76,7 @@ public class GraphJSONStrDiffCreator {
 				"							\"content\" : \"<sample link content>\",\n" + 
 				"							\"isTombstone\" : false\n" + 
 				"						},\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"5\",\n" + 
-				"							\"linkedElementVersion\" : \"5\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementVersion\" : \"5\"\n" + 
 				"					}\n" + 
 				"				]\n" + 
 				"			}\n" + 
@@ -129,6 +123,7 @@ public class GraphJSONStrDiffCreator {
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"9\",\n" + 
+				"						\"linkedElementId\" : \"7\",\n" + 
 				"						\"linkUpdate\" : {\n" + 
 				"							\"elementId\" : \"9\",\n" + 
 				"							\"key\" : \"linkKey4\",\n" + 
@@ -136,13 +131,11 @@ public class GraphJSONStrDiffCreator {
 				"							\"content\" : \"<sample link content>\",\n" + 
 				"							\"isTombstone\" : false\n" + 
 				"						},\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"7\",\n" + 
-				"							\"linkedElementVersion\" : \"7\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementVersion\" : \"7\"\n" + 
 				"					},\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"10\",\n" + 
+				"						\"linkedElementId\" : \"8\",\n" + 
 				"						\"linkUpdate\" : {\n" + 
 				"							\"elementId\" : \"10\",\n" + 
 				"							\"key\" : \"linkKey5\",\n" + 
@@ -150,10 +143,7 @@ public class GraphJSONStrDiffCreator {
 				"							\"content\" : \"<sample link content>\",\n" + 
 				"							\"isTombstone\" : false\n" + 
 				"						},\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"8\",\n" + 
-				"							\"linkedElementVersion\" : \"8\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementVersion\" : \"8\"\n" + 
 				"					}\n" + 
 				"				]\n" + 
 				"			}\n" + 
@@ -230,6 +220,7 @@ public class GraphJSONStrDiffCreator {
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"11\",\n" + 
+				"						\"linkedElementId\" : \"1\",\n" + 
 				"						\"linkUpdate\" : {\n" + 
 				"							\"elementId\" : \"11\",\n" + 
 				"							\"key\" : \"linkKey6\",\n" + 
@@ -237,13 +228,11 @@ public class GraphJSONStrDiffCreator {
 				"							\"content\" : \"<sample link content>\",\n" + 
 				"							\"isTombstone\" : false\n" + 
 				"						},\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"1\",\n" + 
-				"							\"linkedElementVersion\" : \"1\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementVersion\" : \"1\"\n" + 
 				"					},\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"12\",\n" + 
+				"						\"linkedElementId\" : \"2\",\n" + 
 				"						\"linkUpdate\" : {\n" + 
 				"							\"elementId\" : \"12\",\n" + 
 				"							\"key\" : \"linkKey7\",\n" + 
@@ -251,13 +240,11 @@ public class GraphJSONStrDiffCreator {
 				"							\"content\" : \"<sample link content>\",\n" + 
 				"							\"isTombstone\" : false\n" + 
 				"						},\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"2\",\n" + 
-				"							\"linkedElementVersion\" : \"2\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementVersion\" : \"2\"\n" + 
 				"					},\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"13\",\n" + 
+				"						\"linkedElementId\" : \"5\",\n" + 
 				"						\"linkUpdate\" : {\n" + 
 				"							\"elementId\" : \"13\",\n" + 
 				"							\"key\" : \"linkKey8\",\n" + 
@@ -265,13 +252,11 @@ public class GraphJSONStrDiffCreator {
 				"							\"content\" : \"<sample link content>\",\n" + 
 				"							\"isTombstone\" : false\n" + 
 				"						},\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"5\",\n" + 
-				"							\"linkedElementVersion\" : \"5\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementVersion\" : \"5\"\n" + 
 				"					},\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"14\",\n" + 
+				"						\"linkedElementId\" : \"7\",\n" + 
 				"						\"linkUpdate\" : {\n" + 
 				"							\"elementId\" : \"14\",\n" + 
 				"							\"key\" : \"linkKey9\",\n" + 
@@ -279,13 +264,11 @@ public class GraphJSONStrDiffCreator {
 				"							\"content\" : \"<sample link content>\",\n" + 
 				"							\"isTombstone\" : false\n" + 
 				"						},\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"7\",\n" + 
-				"							\"linkedElementVersion\" : \"7\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementVersion\" : \"7\"\n" + 
 				"					},\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"15\",\n" + 
+				"						\"linkedElementId\" : \"8\",\n" + 
 				"						\"linkUpdate\" : {\n" + 
 				"							\"elementId\" : \"15\",\n" + 
 				"							\"key\" : \"linkKey10\",\n" + 
@@ -293,10 +276,7 @@ public class GraphJSONStrDiffCreator {
 				"							\"content\" : \"<sample link content>\",\n" + 
 				"							\"isTombstone\" : false\n" + 
 				"						},\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"8\",\n" + 
-				"							\"linkedElementVersion\" : \"8\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementVersion\" : \"8\"\n" + 
 				"					},\n" + 
 				"				]\n" + 
 				"			}\n" + 
@@ -328,10 +308,8 @@ public class GraphJSONStrDiffCreator {
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"4\",\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"2\",\n" + 
-				"							\"linkedElementVersion\" : \"16\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementId\" : \"2\",\n" + 
+				"						\"linkedElementVersion\" : \"16\"\n" + 
 				"					}\n" + 
 				"				]\n" + 
 				"			},\n" + 
@@ -342,10 +320,8 @@ public class GraphJSONStrDiffCreator {
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"12\",\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"2\",\n" + 
-				"							\"linkedElementVersion\" : \"16\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementId\" : \"2\",\n" + 
+				"						\"linkedElementVersion\" : \"16\"\n" + 
 				"					}\n" + 
 				"				]\n" + 
 				"			}\n" + 
@@ -381,10 +357,8 @@ public class GraphJSONStrDiffCreator {
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"10\",\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"8\",\n" + 
-				"							\"linkedElementVersion\" : \"17\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementId\" : \"8\",\n" + 
+				"						\"linkedElementVersion\" : \"17\"\n" + 
 				"					}\n" + 
 				"				]\n" + 
 				"			},\n" + 
@@ -395,10 +369,8 @@ public class GraphJSONStrDiffCreator {
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"15\",\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"8\",\n" + 
-				"							\"linkedElementVersion\" : \"17\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementId\" : \"8\",\n" + 
+				"						\"linkedElementVersion\" : \"17\"\n" + 
 				"					}\n" + 
 				"				]\n" + 
 				"			}\n" + 
@@ -418,7 +390,8 @@ public class GraphJSONStrDiffCreator {
 				"			\n" + 
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
-				"						\"linkId\" : \"10\",\n" + 
+				"						\"linkId\" : \"10\",\n" +
+				"						\"linkedElementId\" : \"8\",\n" + 
 				"						\"linkUpdate\" : {\n" + 
 				"							\"elementId\" : \"10\",\n" + 
 				"							\"key\" : \"linkKey5-1\",\n" + 
@@ -543,10 +516,8 @@ public class GraphJSONStrDiffCreator {
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"3\",\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"1\",\n" + 
-				"							\"linkedElementVersion\" : \"23\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementId\" : \"1\",\n" + 
+				"						\"linkedElementVersion\" : \"23\"\n" + 
 				"					},\n" + 
 				"				]\n" + 
 				"			},\n" + 
@@ -557,10 +528,8 @@ public class GraphJSONStrDiffCreator {
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"11\",\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"1\",\n" + 
-				"							\"linkedElementVersion\" : \"23\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementId\" : \"1\",\n" + 
+				"						\"linkedElementVersion\" : \"23\"\n" + 
 				"					}\n" + 
 				"				]\n" + 
 				"			},\n" + 
@@ -592,10 +561,8 @@ public class GraphJSONStrDiffCreator {
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"9\",\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"7\",\n" + 
-				"							\"linkedElementVersion\" : \"24\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementId\" : \"7\",\n" + 
+				"						\"linkedElementVersion\" : \"24\"\n" + 
 				"					}\n" + 
 				"				]\n" + 
 				"			},\n" + 
@@ -606,10 +573,8 @@ public class GraphJSONStrDiffCreator {
 				"				\"linkUpdates\" : [\n" + 
 				"					{\n" + 
 				"						\"linkId\" : \"14\",\n" + 
-				"						\"linkedElementUpdate\" : {\n" + 
-				"							\"linkedElementId\" : \"7\",\n" + 
-				"							\"linkedElementVersion\" : \"24\"\n" + 
-				"						}\n" + 
+				"						\"linkedElementId\" : \"7\",\n" + 
+				"						\"linkedElementVersion\" : \"24\"\n" + 
 				"					}\n" + 
 				"				]\n" + 
 				"			}\n" + 

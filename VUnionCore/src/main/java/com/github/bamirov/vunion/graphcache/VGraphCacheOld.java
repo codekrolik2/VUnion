@@ -14,7 +14,7 @@ import com.github.bamirov.vunion.exceptions.GraphMismatchException;
 import com.github.bamirov.vunion.exceptions.GraphVersionMismatchException;
 import com.github.bamirov.vunion.graph.VEdge;
 import com.github.bamirov.vunion.graph.VEdgeType;
-import com.github.bamirov.vunion.graph.VGraph;
+import com.github.bamirov.vunion.graph.VGraphElement;
 import com.github.bamirov.vunion.graph.VLink;
 import com.github.bamirov.vunion.graph.VVertex;
 import com.github.bamirov.vunion.graph.VVertexType;

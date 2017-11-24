@@ -1,9 +1,10 @@
 TODO: differentiate between minimal diffs (RAM based) and DB-based diffs with redundant version changes.
 TODO: consider an alternative architecture with a single actor with embedded version generator applying updates to DB in ordered way, a flavor of Proxy persistence thread
+TODO: alternative data model - rather than storing normalized data, store diffs in sequence, read them sequentially upon load
 
 VGraph operations
 
-NB: Those diffes may be simplefied for rAM-only use case, but outlined as they should appear in presence of fault-tolerant MySQL/Galera DB (certain updates are redundant to mitigate possible race conditions on Galera side).
+NB: Those diffes may be simplified for rAM-only use case, but outlined as they should appear in presence of fault-tolerant MySQL/Galera DB (certain updates are redundant to mitigate possible race conditions on Galera side).
 
 Let's define abstract Counter, that produces globally monotonically increasing sequence.
 

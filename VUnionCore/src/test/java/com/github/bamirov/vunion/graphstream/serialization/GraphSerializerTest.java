@@ -12,6 +12,10 @@ import com.github.bamirov.vunion.graphstream.serialization.longs.LongJSONGraphDi
 import com.github.bamirov.vunion.graphstream.serialization.longs.LongStringGraphVersionSerializer;
 
 public class GraphSerializerTest {
+	//TODO: test duplicate elements
+	//TODO: test elements of different types with the identical elementId (e.g. edges and vertexes)
+	//TODO: test duplicate subgraphs
+	
 	private GraphDiffCreator graphDiffCreator = new GraphDiffCreator();
 	private GraphJSONStrDiffCreator graphJSONStrDiffCreator = new GraphJSONStrDiffCreator();
 	
@@ -73,6 +77,10 @@ public class GraphSerializerTest {
 	public void testDiff6() throws JSONException, MalformedVersionException {
 		String diffStr = graphJSONStrDiffCreator.createDiff6();
 		VGraphDiff<Long, Long> graphDiff = graphDiffCreator.createDiff6();
+		
+		System.out.println(diffStr);
+		System.out.println("-------------");
+		System.out.println(graphDiff.toString());
 		
 		compareDiff(diffStr, graphDiff);
 	}

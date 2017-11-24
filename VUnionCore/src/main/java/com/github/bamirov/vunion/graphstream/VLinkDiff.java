@@ -13,14 +13,16 @@ import lombok.ToString;
 @EqualsAndHashCode
 public class VLinkDiff<V extends Comparable<V>, I> {
 	private final I linkId;
+	private final I linkedElementId;
 	
 	private final Optional<VLinkUpdate<V, I>> linkUpdate;
-	private final Optional<VLinkedElementUpdate<V, I>> linkedElementUpdate;
+	private final Optional<V> linkedElementVersionUpdate;
 	
-	public VLinkDiff(I linkId, Optional<VLinkUpdate<V, I>> linkUpdate, 
-			Optional<VLinkedElementUpdate<V, I>> linkedElementUpdate) {
+	public VLinkDiff(I linkId, I linkedElementId, Optional<VLinkUpdate<V, I>> linkUpdate, 
+			Optional<V> linkedElementVersionUpdate) {
 		this.linkId = linkId;
+		this.linkedElementId = linkedElementId;
 		this.linkUpdate = linkUpdate == null ? Optional.empty() : linkUpdate;
-		this.linkedElementUpdate = linkedElementUpdate == null ? Optional.empty() : linkedElementUpdate;
+		this.linkedElementVersionUpdate = linkedElementVersionUpdate == null ? Optional.empty() : linkedElementVersionUpdate;
 	}
 }

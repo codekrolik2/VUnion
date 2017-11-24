@@ -1,6 +1,5 @@
 package com.github.bamirov.vunion.graphstream;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -63,7 +62,7 @@ public class VGraphDiff<V extends Comparable<V>, I> {
 	protected Optional<Map<I, VEdge<V, I>>> edges;
 	
 	@NonNull
-	protected Optional<List<VSubgraphDiff<V, I>>> subgraphs;
+	protected Optional<Map<String, VSubgraphDiff<V, I>>> subgraphs;
 
 	@NonNull
 	protected Optional<VSubgraphSyncRecord<V>> subgraphSync;
@@ -77,7 +76,7 @@ public class VGraphDiff<V extends Comparable<V>, I> {
 	public VGraphDiff(VGraphVersion<V> from, String graphName, 
 			Optional<Map<I, VVertexType<V, I>>> vertexTypes, Optional<Map<I, VVertex<V, I>>> vertexes,
 			Optional<Map<I, VEdgeType<V, I>>> edgeTypes, Optional<Map<I, VEdge<V, I>>> edges,
-			Optional<List<VSubgraphDiff<V, I>>> subgraphs, Optional<VSubgraphSyncRecord<V>> subgraphSync, 
+			Optional<Map<String, VSubgraphDiff<V, I>>> subgraphs, Optional<VSubgraphSyncRecord<V>> subgraphSync, 
 			Optional<VGraphDestroyedRecord<V>> destroyedRecord, Optional<VGraphElementRecord<V, I>> graphElementRecord) {
 		this.from = (from == null) ? VGraphVersion.getEmptyGraphVersion() : from;
 		

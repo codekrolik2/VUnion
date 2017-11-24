@@ -1,6 +1,6 @@
 package com.github.bamirov.vunion.graphstream;
 
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import lombok.Builder;
@@ -21,7 +21,7 @@ public class VSubgraphDiff<V extends Comparable<V>, I> {
 	protected V subgraphVersionTo;
 	
 	@NonNull
-	protected Optional<List<VLinkDiff<V, I>>> linkUpdates;
+	protected Optional<Map<I, VLinkDiff<V, I>>> linkUpdatesByElementId;
 
 	@NonNull
 	protected Optional<VElementSyncRecord<V, I>> elementSync;
@@ -29,7 +29,7 @@ public class VSubgraphDiff<V extends Comparable<V>, I> {
 	@NonNull
 	protected Optional<VSubgraphElementRecord<V, I>> subgraphElementRecord;
 	
-	public VSubgraphDiff(String name, V subgraphVersionTo, Optional<List<VLinkDiff<V, I>>> linkUpdates,
+	public VSubgraphDiff(String name, V subgraphVersionTo, Optional<Map<I, VLinkDiff<V, I>>> linkUpdatesByElementId,
 			Optional<VElementSyncRecord<V, I>> elementSync, Optional<VSubgraphElementRecord<V, I>> subgraphElementRecord) {
 		if (name == null)
 			throw new NullPointerException("name");
@@ -41,7 +41,7 @@ public class VSubgraphDiff<V extends Comparable<V>, I> {
 		else
 			this.subgraphVersionTo = subgraphVersionTo;
 		
-		this.linkUpdates = linkUpdates == null ? Optional.empty() : linkUpdates;
+		this.linkUpdatesByElementId = linkUpdatesByElementId == null ? Optional.empty() : linkUpdatesByElementId;
 		this.elementSync = elementSync == null ? Optional.empty() : elementSync;
 		this.subgraphElementRecord = subgraphElementRecord == null ? Optional.empty() : subgraphElementRecord;
 	}

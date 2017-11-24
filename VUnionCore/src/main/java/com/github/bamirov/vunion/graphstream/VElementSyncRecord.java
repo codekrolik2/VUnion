@@ -1,6 +1,6 @@
 package com.github.bamirov.vunion.graphstream;
 
-import java.util.List;
+import java.util.Set;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,5 +15,5 @@ import lombok.Singular;
 public class VElementSyncRecord<V extends Comparable<V>, I> {
 	protected V elementSyncVersion;
 	@Singular
-	protected List<I> elementIds;
+	protected Set<I> elementIds;
 }

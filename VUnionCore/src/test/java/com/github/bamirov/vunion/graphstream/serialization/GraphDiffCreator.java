@@ -1,15 +1,13 @@
 package com.github.bamirov.vunion.graphstream.serialization;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import com.github.bamirov.vunion.graph.VEdge;
 import com.github.bamirov.vunion.graph.VEdgeType;
-import com.github.bamirov.vunion.graph.VGraph;
-import com.github.bamirov.vunion.graph.VSubgraph;
+import com.github.bamirov.vunion.graph.VGraphElement;
+import com.github.bamirov.vunion.graph.VSubgraphElement;
 import com.github.bamirov.vunion.graph.VVertex;
 import com.github.bamirov.vunion.graph.VVertexType;
 import com.github.bamirov.vunion.graphstream.VElementSyncRecord;
@@ -18,7 +16,6 @@ import com.github.bamirov.vunion.graphstream.VGraphDiff;
 import com.github.bamirov.vunion.graphstream.VGraphElementRecord;
 import com.github.bamirov.vunion.graphstream.VLinkDiff;
 import com.github.bamirov.vunion.graphstream.VLinkUpdate;
-import com.github.bamirov.vunion.graphstream.VLinkedElementUpdate;
 import com.github.bamirov.vunion.graphstream.VSubgraphDiff;
 import com.github.bamirov.vunion.graphstream.VSubgraphElementRecord;
 import com.github.bamirov.vunion.graphstream.VSubgraphSyncRecord;
@@ -29,7 +26,8 @@ public class GraphDiffCreator {
 			String key, String content, Long linkedElementId, Long linkedElementVersion) {
 
 		VLinkDiff.VLinkDiffBuilder<Long, Long> builder = VLinkDiff.<Long, Long>builder()
-		.linkId(linkId);
+		.linkId(linkId)
+		.linkedElementId(linkedElementId);
 		
 		VLinkUpdate<Long, Long> linkUpdate = null;
 		if (isTombstone != null) {
@@ -40,19 +38,18 @@ public class GraphDiffCreator {
 			builder.linkUpdate(Optional.of(linkUpdate));
 		}
 		
-		VLinkedElementUpdate<Long, Long> linkedElementUpdate = null;
+		Optional<Long> linkedElementVersionUpdate = null;
 		if (linkedElementVersion != null) {
-			linkedElementUpdate = new VLinkedElementUpdate<Long, Long>(linkedElementId, linkedElementVersion);
-			
-			builder.linkedElementUpdate(Optional.of(linkedElementUpdate));
+			linkedElementVersionUpdate = Optional.of(linkedElementVersion);
+			builder.linkedElementVersionUpdate(linkedElementVersionUpdate);
 		}
 		
 		return builder.build();
 	}
 	
-	private VLinkDiff<Long, Long> createLink(Long linkId, Boolean isTombstone, Long version,
+	private VLinkDiff<Long, Long> createLink(Long linkId, Long linkedElementId, Boolean isTombstone, Long version,
 			String key, String content) {
-		return createLink(linkId, isTombstone, version, key, content, null, null);
+		return createLink(linkId, isTombstone, version, key, content, linkedElementId, null);
 	}
 	
 	private VLinkDiff<Long, Long> createLink(Long linkId, Long linkedElementId, Long linkedElementVersion) {
@@ -134,22 +131,22 @@ public class GraphDiffCreator {
 		vertexes.put(vertex1.getElementId(), vertex1);
 		vertexes.put(vertex2.getElementId(), vertex2);
 		
-		List<VLinkDiff<Long, Long>> linkDiffs = new ArrayList<VLinkDiff<Long, Long>>();
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs = new HashMap<>();
 		VLinkDiff<Long, Long> link1 = createLink(3L, false, 3L, "linkKey1", "<sample link content>", 1L, 1L);
 		VLinkDiff<Long, Long> link2 = createLink(4L, false, 4L, "linkKey2", "<sample link content>", 2L, 2L);
 		VLinkDiff<Long, Long> link3 = createLink(6L, false, 6L, "linkKey3", "<sample link content>", 5L, 5L);
-		linkDiffs.add(link1);
-		linkDiffs.add(link2);
-		linkDiffs.add(link3);
-		
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		linkDiffs.put(link1.getLinkedElementId(), link1);
+		linkDiffs.put(link2.getLinkedElementId(), link2);
+		linkDiffs.put(link3.getLinkedElementId(), link3);
+		 
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph0")
 				.subgraphVersionTo(6L)
-				.linkUpdates(Optional.of(linkDiffs))
+				.linkUpdatesByElementId(Optional.of(linkDiffs))
 				
 				.build(); 
-		subgraphs.add(subgraph);
+		subgraphs.put(subgraph.getName(), subgraph);
 		
 		VGraphDiff<Long, Long> diff1 = VGraphDiff.<Long, Long>builder()
 				.graphName("graph0")
@@ -176,20 +173,20 @@ public class GraphDiffCreator {
 		VEdge<Long, Long> edge = createEdge(8L, 8L, "edgeKey1", "<sample edge content>", 7L, 2L, 5L, false);
 		edges.put(edge.getElementId(), edge);
 		
-		List<VLinkDiff<Long, Long>> linkDiffs = new ArrayList<VLinkDiff<Long, Long>>();
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs = new HashMap<>();
 		VLinkDiff<Long, Long> link1 = createLink(9L, false, 9L, "linkKey4", "<sample link content>", 7L, 7L);
 		VLinkDiff<Long, Long> link2 = createLink(10L, false, 10L, "linkKey5", "<sample link content>", 8L, 8L);
-		linkDiffs.add(link1);
-		linkDiffs.add(link2);
+		linkDiffs.put(link1.getLinkedElementId(), link1);
+		linkDiffs.put(link2.getLinkedElementId(), link2);
 		
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph0")
 				.subgraphVersionTo(10L)
-				.linkUpdates(Optional.of(linkDiffs))
+				.linkUpdatesByElementId(Optional.of(linkDiffs))
 				
 				.build();
-		subgraphs.add(subgraph);
+		subgraphs.put(subgraph.getName(), subgraph);
 		
 		VGraphDiff<Long, Long> diff2 = VGraphDiff.<Long, Long>builder()
 				.from(from)
@@ -227,27 +224,27 @@ public class GraphDiffCreator {
 		VEdge<Long, Long> edge = createEdge(8L, 8L, "edgeKey1", "<sample edge content>", 7L, 2L, 5L, false);
 		edges.put(edge.getElementId(), edge);
 		
-		List<VLinkDiff<Long, Long>> linkDiffs1 = new ArrayList<VLinkDiff<Long, Long>>();
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs1 = new HashMap<>();
 		VLinkDiff<Long, Long> link11 = createLink(11L, false, 11L, "linkKey6", "<sample link content>", 1L, 1L);
 		VLinkDiff<Long, Long> link12 = createLink(12L, false, 12L, "linkKey7", "<sample link content>", 2L, 2L);
 		VLinkDiff<Long, Long> link13 = createLink(13L, false, 13L, "linkKey8", "<sample link content>", 5L, 5L);
 		VLinkDiff<Long, Long> link14 = createLink(14L, false, 14L, "linkKey9", "<sample link content>", 7L, 7L);
 		VLinkDiff<Long, Long> link15 = createLink(15L, false, 15L, "linkKey10", "<sample link content>", 8L, 8L);
 		
-		linkDiffs1.add(link11);
-		linkDiffs1.add(link12);
-		linkDiffs1.add(link13);
-		linkDiffs1.add(link14);
-		linkDiffs1.add(link15);
+		linkDiffs1.put(link11.getLinkedElementId(), link11);
+		linkDiffs1.put(link12.getLinkedElementId(), link12);
+		linkDiffs1.put(link13.getLinkedElementId(), link13);
+		linkDiffs1.put(link14.getLinkedElementId(), link14);
+		linkDiffs1.put(link15.getLinkedElementId(), link15);
 		
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph1 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph1")
 				.subgraphVersionTo(15L)
-				.linkUpdates(Optional.of(linkDiffs1))
+				.linkUpdatesByElementId(Optional.of(linkDiffs1))
 				
 				.build();
-		subgraphs.add(subgraph1);
+		subgraphs.put(subgraph1.getName(), subgraph1);
 		
 		VGraphDiff<Long, Long> diff3 = VGraphDiff.<Long, Long>builder()
 				.from(from)
@@ -274,29 +271,29 @@ public class GraphDiffCreator {
 		VVertex<Long, Long> vertex = createVertex(2L, 16L, "vertexKey1-1", "<sample vertex content-1>", 1L);
 		vertexes.put(vertex.getElementId(), vertex);
 		
-		List<VLinkDiff<Long, Long>> linkDiffs0 = new ArrayList<VLinkDiff<Long, Long>>();
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs0 = new HashMap<>();
 		VLinkDiff<Long, Long> link0 = createLink(4L, 2L, 16L);
-		linkDiffs0.add(link0);
+		linkDiffs0.put(link0.getLinkedElementId(), link0);
 		
-		List<VLinkDiff<Long, Long>> linkDiffs1 = new ArrayList<VLinkDiff<Long, Long>>();
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs1 = new HashMap<>();
 		VLinkDiff<Long, Long> link1 = createLink(12L, 2L, 16L);
-		linkDiffs1.add(link1);
+		linkDiffs1.put(link1.getLinkedElementId(), link1);
 		
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph0")
 				.subgraphVersionTo(16L)
-				.linkUpdates(Optional.of(linkDiffs0))
+				.linkUpdatesByElementId(Optional.of(linkDiffs0))
 				
 				.build();
 		VSubgraphDiff<Long, Long> subgraph1 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph1")
 				.subgraphVersionTo(16L)
-				.linkUpdates(Optional.of(linkDiffs1))
+				.linkUpdatesByElementId(Optional.of(linkDiffs1))
 				
 				.build();
-		subgraphs.add(subgraph0);
-		subgraphs.add(subgraph1);
+		subgraphs.put(subgraph0.getName(), subgraph0);
+		subgraphs.put(subgraph1.getName(), subgraph1);
 		
 		VGraphDiff<Long, Long> diff4 = VGraphDiff.<Long, Long>builder()
 				.from(from)
@@ -320,29 +317,29 @@ public class GraphDiffCreator {
 		VEdge<Long, Long> edge = createEdge(8L, 17L, "edgeKey1-1", "<sample edge content-1>", 7L, 2L, 5L, true);
 		edges.put(edge.getElementId(), edge);
 		
-		List<VLinkDiff<Long, Long>> linkDiffs0 = new ArrayList<VLinkDiff<Long, Long>>();
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs0 = new HashMap<>();
 		VLinkDiff<Long, Long> link0 = createLink(10L, 8L, 17L);
-		linkDiffs0.add(link0);
+		linkDiffs0.put(link0.getLinkedElementId(), link0);
 		
-		List<VLinkDiff<Long, Long>> linkDiffs1 = new ArrayList<VLinkDiff<Long, Long>>();
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs1 = new HashMap<>();
 		VLinkDiff<Long, Long> link1 = createLink(15L, 8L, 17L);
-		linkDiffs1.add(link1);
+		linkDiffs1.put(link1.getLinkedElementId(), link1);
 	
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph0")
 				.subgraphVersionTo(17L)
-				.linkUpdates(Optional.of(linkDiffs0))
+				.linkUpdatesByElementId(Optional.of(linkDiffs0))
 				
 				.build();
 		VSubgraphDiff<Long, Long> subgraph1 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph1")
 				.subgraphVersionTo(17L)
-				.linkUpdates(Optional.of(linkDiffs1))
+				.linkUpdatesByElementId(Optional.of(linkDiffs1))
 				
 				.build();
-		subgraphs.add(subgraph0);
-		subgraphs.add(subgraph1);
+		subgraphs.put(subgraph0.getName(), subgraph0);
+		subgraphs.put(subgraph1.getName(), subgraph1);
 		
 		VGraphDiff<Long, Long> diff5 = VGraphDiff.<Long, Long>builder()
 				.from(from)
@@ -362,18 +359,18 @@ public class GraphDiffCreator {
 				.subgraphVersion("subgraph1", 17L)
 				.build();
 		
-		List<VLinkDiff<Long, Long>> linkDiffs0 = new ArrayList<VLinkDiff<Long, Long>>();
-		VLinkDiff<Long, Long> link0 = createLink(10L, true, 18L, "linkKey5-1", "<sample link content-1>");
-		linkDiffs0.add(link0);
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs0 = new HashMap<>();
+		VLinkDiff<Long, Long> link0 = createLink(10L, 8L, true, 18L, "linkKey5-1", "<sample link content-1>");
+		linkDiffs0.put(link0.getLinkedElementId(), link0);
 		
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph0")
 				.subgraphVersionTo(18L)
-				.linkUpdates(Optional.of(linkDiffs0))
+				.linkUpdatesByElementId(Optional.of(linkDiffs0))
 				
 				.build();
-		subgraphs.add(subgraph0);
+		subgraphs.put(subgraph0.getName(), subgraph0);
 		
 		VGraphDiff<Long, Long> diff6 = VGraphDiff.<Long, Long>builder()
 				.from(from)
@@ -395,7 +392,7 @@ public class GraphDiffCreator {
 		VGraphElementRecord<Long, Long> graphElementRecord = VGraphElementRecord.<Long, Long>builder()
 				.graphElementUpdateVersion(19L)
 				.graphElement(Optional.of(
-							VGraph.<Long, Long>builder()
+							VGraphElement.<Long, Long>builder()
 								.elementId(16L)
 								.version(19L)
 								.key(Optional.of("graphElementKey1"))
@@ -425,7 +422,7 @@ public class GraphDiffCreator {
 		VGraphElementRecord<Long, Long> graphElementRecord = VGraphElementRecord.<Long, Long>builder()
 				.graphElementUpdateVersion(20L)
 				.graphElement(Optional.of(
-							VGraph.<Long, Long>builder()
+							VGraphElement.<Long, Long>builder()
 								.elementId(16L)
 								.version(20L)
 								.key(Optional.of("graphElementKey1-1"))
@@ -455,7 +452,7 @@ public class GraphDiffCreator {
 		VSubgraphElementRecord<Long, Long> subgraphElementRecord = VSubgraphElementRecord.<Long, Long>builder()
 				.subgraphElementUpdateVersion(21L)
 				.subgraphElement(Optional.of(
-							VSubgraph.<Long, Long>builder()
+							VSubgraphElement.<Long, Long>builder()
 								.elementId(17L)
 								.version(21L)
 								.key(Optional.of("subgraphElementKey1"))
@@ -464,14 +461,14 @@ public class GraphDiffCreator {
 						))
 				.build();
 		
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph0")
 				.subgraphVersionTo(21L)
 				.subgraphElementRecord(Optional.of(subgraphElementRecord))
 				
 				.build();
-		subgraphs.add(subgraph0);
+		subgraphs.put(subgraph0.getName(), subgraph0);
 
 		VGraphDiff<Long, Long> diff81 = VGraphDiff.<Long, Long>builder()
 				.from(from)
@@ -494,7 +491,7 @@ public class GraphDiffCreator {
 		VSubgraphElementRecord<Long, Long> subgraphElementRecord = VSubgraphElementRecord.<Long, Long>builder()
 				.subgraphElementUpdateVersion(22L)
 				.subgraphElement(Optional.of(
-							VSubgraph.<Long, Long>builder()
+							VSubgraphElement.<Long, Long>builder()
 								.elementId(17L)
 								.version(22L)
 								.key(Optional.of("subgraphElementKey1-1"))
@@ -503,14 +500,14 @@ public class GraphDiffCreator {
 						))
 				.build();
 		
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph0")
 				.subgraphVersionTo(22L)
 				.subgraphElementRecord(Optional.of(subgraphElementRecord))
 				
 				.build();
-		subgraphs.add(subgraph0);
+		subgraphs.put(subgraph0.getName(), subgraph0);
 
 		VGraphDiff<Long, Long> diff82 = VGraphDiff.<Long, Long>builder()
 				.from(from)
@@ -534,29 +531,29 @@ public class GraphDiffCreator {
 		VVertexType<Long, Long> vertexType = createVertexType(1L, 23L, "vertexTypeKey1-1", "<sample vertex type-1>", "vertexType0-1");
 		vertexTypes.put(vertexType.getElementId(), vertexType);
 		
-		List<VLinkDiff<Long, Long>> linkDiffs0 = new ArrayList<VLinkDiff<Long, Long>>();
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs0 = new HashMap<>();
 		VLinkDiff<Long, Long> link0 = createLink(3L, 1L, 23L);
-		linkDiffs0.add(link0);
+		linkDiffs0.put(link0.getLinkedElementId(), link0);
 		
-		List<VLinkDiff<Long, Long>> linkDiffs1 = new ArrayList<VLinkDiff<Long, Long>>();
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs1 = new HashMap<>();
 		VLinkDiff<Long, Long> link1 = createLink(11L, 1L, 23L);
-		linkDiffs1.add(link1);
+		linkDiffs1.put(link1.getLinkedElementId(), link1);
 		
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph0")
 				.subgraphVersionTo(23L)
-				.linkUpdates(Optional.of(linkDiffs0))
+				.linkUpdatesByElementId(Optional.of(linkDiffs0))
 				
 				.build();
 		VSubgraphDiff<Long, Long> subgraph1 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph1")
 				.subgraphVersionTo(23L)
-				.linkUpdates(Optional.of(linkDiffs1))
+				.linkUpdatesByElementId(Optional.of(linkDiffs1))
 				
 				.build();
-		subgraphs.add(subgraph0);
-		subgraphs.add(subgraph1);
+		subgraphs.put(subgraph0.getName(), subgraph0);
+		subgraphs.put(subgraph1.getName(), subgraph1);
 		
 		VGraphDiff<Long, Long> diff9 = VGraphDiff.<Long, Long>builder()
 			.from(from)
@@ -581,29 +578,29 @@ public class GraphDiffCreator {
 		VEdgeType<Long, Long> edgeType = createEdgeType(7L, 24L, "edgeTypeKey1-1", "<sample edge type-1>", "edgeType0-1");
 		edgeTypes.put(edgeType.getElementId(), edgeType);
 		
-		List<VLinkDiff<Long, Long>> linkDiffs0 = new ArrayList<VLinkDiff<Long, Long>>();
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs0 = new HashMap<>();
 		VLinkDiff<Long, Long> link0 = createLink(9L, 7L, 24L);
-		linkDiffs0.add(link0);
+		linkDiffs0.put(link0.getLinkedElementId(), link0);
 		
-		List<VLinkDiff<Long, Long>> linkDiffs1 = new ArrayList<VLinkDiff<Long, Long>>();
+		Map<Long, VLinkDiff<Long, Long>> linkDiffs1 = new HashMap<>();
 		VLinkDiff<Long, Long> link1 = createLink(14L, 7L, 24L);
-		linkDiffs1.add(link1);
+		linkDiffs1.put(link1.getLinkedElementId(), link1);
 		
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph0")
 				.subgraphVersionTo(24L)
-				.linkUpdates(Optional.of(linkDiffs0))
+				.linkUpdatesByElementId(Optional.of(linkDiffs0))
 				
 				.build();
 		VSubgraphDiff<Long, Long> subgraph1 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph1")
 				.subgraphVersionTo(24L)
-				.linkUpdates(Optional.of(linkDiffs1))
+				.linkUpdatesByElementId(Optional.of(linkDiffs1))
 				
 				.build();
-		subgraphs.add(subgraph0);
-		subgraphs.add(subgraph1);
+		subgraphs.put(subgraph0.getName(), subgraph0);
+		subgraphs.put(subgraph1.getName(), subgraph1);
 		
 		VGraphDiff<Long, Long> diff10 = VGraphDiff.<Long, Long>builder()
 			.from(from)
@@ -625,7 +622,7 @@ public class GraphDiffCreator {
 				.subgraphVersion("subgraph1", 24L)
 				.build();
 		
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph1")
 				.subgraphVersionTo(25L)
@@ -641,7 +638,7 @@ public class GraphDiffCreator {
 						))
 				
 				.build();
-		subgraphs.add(subgraph0);
+		subgraphs.put(subgraph0.getName(), subgraph0);
 		
 		VGraphDiff<Long, Long> diff11 = VGraphDiff.<Long, Long>builder()
 			.from(from)
@@ -709,14 +706,14 @@ public class GraphDiffCreator {
 				.subgraphElementUpdateVersion(28L)
 				.build();
 		
-		List<VSubgraphDiff<Long, Long>> subgraphs = new ArrayList<>();
+		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
 				.name("subgraph0")
 				.subgraphVersionTo(28L)
 				.subgraphElementRecord(Optional.of(subgraphElementRecord))
 				
 				.build();
-		subgraphs.add(subgraph0);
+		subgraphs.put(subgraph0.getName(), subgraph0);
 		
 		VGraphDiff<Long, Long> diff15 = VGraphDiff.<Long, Long>builder()
 				.from(from)

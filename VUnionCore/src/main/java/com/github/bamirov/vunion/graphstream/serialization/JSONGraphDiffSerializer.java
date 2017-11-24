@@ -2,9 +2,11 @@ package com.github.bamirov.vunion.graphstream.serialization;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -14,8 +16,8 @@ import com.github.bamirov.vunion.exceptions.MalformedVersionException;
 import com.github.bamirov.vunion.graph.VEdge;
 import com.github.bamirov.vunion.graph.VEdgeType;
 import com.github.bamirov.vunion.graph.VElement;
-import com.github.bamirov.vunion.graph.VGraph;
-import com.github.bamirov.vunion.graph.VSubgraph;
+import com.github.bamirov.vunion.graph.VGraphElement;
+import com.github.bamirov.vunion.graph.VSubgraphElement;
 import com.github.bamirov.vunion.graph.VVertex;
 import com.github.bamirov.vunion.graph.VVertexType;
 import com.github.bamirov.vunion.graphstream.VElementSyncRecord;
@@ -106,16 +108,16 @@ public abstract class JSONGraphDiffSerializer<V extends Comparable<V>, I> {
 		} else
 			edgesOpt = Optional.empty();
 		
-		Optional<List<VSubgraphDiff<V, I>>> subgraphsOpt;
+		Optional<Map<String, VSubgraphDiff<V, I>>> subgraphsOpt;
 		if (diffJSON.has("subgraphs")) {
-			List<VSubgraphDiff<V, I>> subgraphs = new ArrayList<>();
+			Map<String, VSubgraphDiff<V, I>> subgraphs = new HashMap<>();
 			JSONArray subgraphsJSON = diffJSON.getJSONArray("subgraphs");
 			
 			for (int i = 0; i < subgraphsJSON.length(); i++) {
 				JSONObject subgraphJSON = subgraphsJSON.getJSONObject(i);
 				VSubgraphDiff<V, I> subgraph = deserializeSubgraphDiff(subgraphJSON);
 				
-				subgraphs.add(subgraph);
+				subgraphs.put(subgraph.getName(), subgraph);
 			}
 			
 			subgraphsOpt = Optional.of(subgraphs);
@@ -156,15 +158,15 @@ public abstract class JSONGraphDiffSerializer<V extends Comparable<V>, I> {
 		String name = subgraphJSON.getString("name");
 		V subgraphVersionTo = versionSerializer.stringToV(subgraphJSON.getString("subgraphVersionTo"));
 		
-		Optional<List<VLinkDiff<V, I>>> linkUpdatesOpt;
+		Optional<Map<I, VLinkDiff<V, I>>> linkUpdatesOpt;
 		if (subgraphJSON.has("linkUpdates")) {
 			JSONArray linkUpdatesJSON = subgraphJSON.getJSONArray("linkUpdates");
-			List<VLinkDiff<V, I>> linkUpdates = new ArrayList<VLinkDiff<V, I>>();
+			Map<I, VLinkDiff<V, I>> linkUpdates = new HashMap<>();
 			
 			for (int i = 0; i < linkUpdatesJSON.length(); i++) {
 				JSONObject linkUpdateJSON = linkUpdatesJSON.getJSONObject(i);
 				VLinkDiff<V, I> linkDiff = deserializeLinkDiff(linkUpdateJSON);
-				linkUpdates.add(linkDiff);
+				linkUpdates.put(linkDiff.getLinkedElementId(), linkDiff);
 			}
 			
 			linkUpdatesOpt = Optional.of(linkUpdates);
@@ -198,11 +200,11 @@ public abstract class JSONGraphDiffSerializer<V extends Comparable<V>, I> {
 		V subgraphElementUpdateVersion = 
 				versionSerializer.stringToV(elementSyncVersionJSON.getString("subgraphElementUpdateVersion"));
 		
-		Optional<VSubgraph<V, I>> subgraphElement;
+		Optional<VSubgraphElement<V, I>> subgraphElement;
 		if (elementSyncVersionJSON.has("subgraphElement")) {
 			JSONObject subgraphElementJSON = elementSyncVersionJSON.getJSONObject("subgraphElement");
 			VElement<V, I> tmp = deserializeElement(subgraphElementJSON);
-			VSubgraph<V, I> vSubgraph = new VSubgraph<>(tmp.getElementId(), tmp.getVersion(), tmp.getKey(), tmp.getContent());
+			VSubgraphElement<V, I> vSubgraph = new VSubgraphElement<>(tmp.getElementId(), tmp.getVersion(), tmp.getKey(), tmp.getContent());
 			
 			subgraphElement = Optional.of(vSubgraph);
 		} else
@@ -216,7 +218,7 @@ public abstract class JSONGraphDiffSerializer<V extends Comparable<V>, I> {
 	protected VElementSyncRecord<V, I> deserializeElementSyncRecord(JSONObject elementSyncVersionJSON) {
 		V elementSyncVersion = versionSerializer.stringToV(elementSyncVersionJSON.getString("elementSyncVersion"));
 		
-		List<I> elementIds = new ArrayList<>();
+		Set<I> elementIds = new HashSet<>();
 		JSONArray arr = elementSyncVersionJSON.getJSONArray("elementIds");
 		for (int i = 0; i < arr.length(); i++) {
 			String elementId = arr.getString(i);
@@ -229,6 +231,7 @@ public abstract class JSONGraphDiffSerializer<V extends Comparable<V>, I> {
 	
 	protected VLinkDiff<V, I> deserializeLinkDiff(JSONObject linkUpdateJSON) {
 		I linkId = stringToI(linkUpdateJSON.getString("linkId"));
+		I linkedElementId = stringToI(linkUpdateJSON.getString("linkedElementId"));
 		
 		Optional<VLinkUpdate<V, I>> linkUpdateOpt;
 		if (linkUpdateJSON.has("linkUpdate")) {
@@ -243,28 +246,24 @@ public abstract class JSONGraphDiffSerializer<V extends Comparable<V>, I> {
 		} else 
 			linkUpdateOpt = Optional.empty();
 		
-		Optional<VLinkedElementUpdate<V, I>> linkedElementUpdateOpt;
-		if (linkUpdateJSON.has("linkedElementUpdate")) {
-			JSONObject linkedElementUpdateJSONChild = linkUpdateJSON.getJSONObject("linkedElementUpdate"); 
-			I linkedElementId = stringToI(linkedElementUpdateJSONChild.getString("linkedElementId"));
-			V linkedElementVersion = versionSerializer.stringToV(linkedElementUpdateJSONChild.getString("linkedElementVersion"));
-
-			VLinkedElementUpdate<V, I> update = new VLinkedElementUpdate<>(linkedElementId, linkedElementVersion);
-			linkedElementUpdateOpt = Optional.of(update);
-		} else 
-			linkedElementUpdateOpt = Optional.empty();
+		Optional<V> linkedElementVersionOpt;
+		if (linkUpdateJSON.has("linkedElementVersion")) {
+			V linkedElementVersion = versionSerializer.stringToV(linkUpdateJSON.getString("linkedElementVersion"));
+			linkedElementVersionOpt = Optional.of(linkedElementVersion);
+		} else
+			linkedElementVersionOpt = Optional.empty();
 		
-		VLinkDiff<V, I> diff = new VLinkDiff<>(linkId, linkUpdateOpt, linkedElementUpdateOpt);
+		VLinkDiff<V, I> diff = new VLinkDiff<>(linkId, linkedElementId, linkUpdateOpt, linkedElementVersionOpt);
 		return diff;
 	}
 	
 	protected VGraphElementRecord<V, I> deserializeGraphElementRecord(JSONObject graphElementRecordJSON) {
 		V graphElementUpdateVersion = versionSerializer.stringToV(graphElementRecordJSON.getString("graphElementUpdateVersion"));
-		Optional<VGraph<V, I>> graphElement;
+		Optional<VGraphElement<V, I>> graphElement;
 		if (graphElementRecordJSON.has("graphElement")) {
 			JSONObject graphElementJSON = graphElementRecordJSON.getJSONObject("graphElement");
 			VElement<V, I> tmp = deserializeElement(graphElementJSON);
-			VGraph<V, I> vGraph = new VGraph<>(tmp.getElementId(), tmp.getVersion(), tmp.getKey(), tmp.getContent());
+			VGraphElement<V, I> vGraph = new VGraphElement<>(tmp.getElementId(), tmp.getVersion(), tmp.getKey(), tmp.getContent());
 			
 			graphElement = Optional.of(vGraph);
 		} else
@@ -433,10 +432,10 @@ public abstract class JSONGraphDiffSerializer<V extends Comparable<V>, I> {
 		return graphElementRecordJSON;
 	}
 	
-	protected JSONArray serializeSubgraphs(List<VSubgraphDiff<V, I>> subgraphs) {
+	protected JSONArray serializeSubgraphs(Map<String, VSubgraphDiff<V, I>> subgraphs) {
 		JSONArray subgraphsJSON = new JSONArray();
 		
-		for (VSubgraphDiff<V, I> subgraph : subgraphs) {
+		for (VSubgraphDiff<V, I> subgraph : subgraphs.values()) {
 			JSONObject subgraphJSON = serializeSubgraph(subgraph);
 			subgraphsJSON.put(subgraphJSON);
 		}
@@ -450,10 +449,10 @@ public abstract class JSONGraphDiffSerializer<V extends Comparable<V>, I> {
 		subgraphJSON.put("name", subgraph.getName());
 		subgraphJSON.put("subgraphVersionTo", versionSerializer.vToString(subgraph.getSubgraphVersionTo()));
 		
-		if (subgraph.getLinkUpdates().isPresent())
-		if (!subgraph.getLinkUpdates().get().isEmpty()) {
+		if (subgraph.getLinkUpdatesByElementId().isPresent())
+		if (!subgraph.getLinkUpdatesByElementId().get().isEmpty()) {
 			JSONArray updates = new JSONArray();
-			for (VLinkDiff<V, I> link : subgraph.getLinkUpdates().get())
+			for (VLinkDiff<V, I> link : subgraph.getLinkUpdatesByElementId().get().values())
 				updates.put(serializeLink(link));
 			subgraphJSON.put("linkUpdates", updates);
 		}
@@ -501,12 +500,13 @@ public abstract class JSONGraphDiffSerializer<V extends Comparable<V>, I> {
 		JSONObject linkJSON = new JSONObject();
 		
 		linkJSON.put("linkId", iToString(link.getLinkId()));
+		linkJSON.put("linkedElementId", iToString(link.getLinkedElementId()));
 		
 		if (link.getLinkUpdate().isPresent())
 			linkJSON.put("linkUpdate", serializeLinkUpdate(link.getLinkUpdate().get()));
 		
-		if (link.getLinkedElementUpdate().isPresent())
-			linkJSON.put("linkedElementUpdate", serializeLinkElementUpdate(link.getLinkedElementUpdate().get()));
+		if (link.getLinkedElementVersionUpdate().isPresent())
+			linkJSON.put("linkedElementVersion", versionSerializer.vToString(link.getLinkedElementVersionUpdate().get()));
 		
 		return linkJSON;
 	}
