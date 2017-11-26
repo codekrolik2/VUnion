@@ -26,7 +26,7 @@ import com.github.bamirov.vunion.graphstream.VSubgraphElementRecord;
 import com.github.bamirov.vunion.graphstream.VSubgraphSyncRecord;
 import com.github.bamirov.vunion.version.VGraphVersion;
 
-//TODO: implement V comparator for code clarity
+//TODO: use VComparator for code clarity
 public class GraphDiffChecker<V extends Comparable<V>, I> {
 	protected V getGraphMaxVersion(VGraphCache<V, I> cache) {
 		V graphVersion = cache.getGraphUpdateVersion();
@@ -558,13 +558,14 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 			}
 			
 			if (subgraphCache != null) {
-				if (subgraphCache.getSubgraphElement().isPresent()) {
-					if (subgraphElementRecord.getSubgraphElementUpdateVersion().compareTo(subgraphCache.getSubgraphElement().get().getVersion()) <= 0) {
+				if (subgraphCache.getSubgraphElementRecord().isPresent()) {
+					if (subgraphElementRecord.getSubgraphElementUpdateVersion().compareTo(
+							subgraphCache.getSubgraphElementRecord().get().getSubgraphElementVersion()) <= 0) {
 						throw new GraphMismatchException(
 							String.format("SubgraphElementRecord inconsistent: [Subgraph [%s]: SubgraphElementUpdateVersion: [%s] <= cache SubgraphElement.Version: [%s]]",
 									subgraphDiff.getName(),
 									subgraphElementRecord.getSubgraphElementUpdateVersion().toString(), 
-									subgraphCache.getSubgraphElement().get().getVersion().toString())
+									subgraphCache.getSubgraphElementRecord().get().getSubgraphElementVersion().toString())
 						);
 					}
 				}
