@@ -1,6 +1,6 @@
 package com.github.bamirov.vunion.graphstream;
 
-import java.util.List;
+import java.util.Set;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,5 +15,5 @@ import lombok.Singular;
 public class VSubgraphSyncRecord<V extends Comparable<V>> {
 	protected V subgraphSyncVersion;
 	@Singular
-	protected List<String> subgraphNames;
+	protected Set<String> subgraphNames;
 }

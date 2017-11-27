@@ -22,7 +22,7 @@ public class VSubgraphDiff<V extends Comparable<V>, I> {
 	
 	@NonNull
 	protected Optional<Map<I, VLinkDiff<V, I>>> linkUpdatesByElementId;
-
+	
 	@NonNull
 	protected Optional<VElementSyncRecord<V, I>> elementSync;
 	

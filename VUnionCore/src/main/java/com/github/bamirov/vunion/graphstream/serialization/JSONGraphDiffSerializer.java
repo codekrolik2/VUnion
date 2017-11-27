@@ -1,9 +1,7 @@
 package com.github.bamirov.vunion.graphstream.serialization;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -285,7 +283,7 @@ public abstract class JSONGraphDiffSerializer<V extends Comparable<V>, I> {
 		V subgraphSyncVersion = versionSerializer.stringToV(subgraphSyncJSON.getString("subgraphSyncVersion"));
 		JSONArray subgraphNamesJSON = subgraphSyncJSON.getJSONArray("subgraphNames");
 		
-		List<String> subgraphNames = new ArrayList<String>();
+		Set<String> subgraphNames = new HashSet<>();
 		for (int i = 0; i < subgraphNamesJSON.length(); i++) {
 			String subgraphName = subgraphNamesJSON.getString(i);
 			subgraphNames.add(subgraphName);

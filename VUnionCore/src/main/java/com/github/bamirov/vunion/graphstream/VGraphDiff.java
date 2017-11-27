@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import com.github.bamirov.vunion.graph.VEdge;
 import com.github.bamirov.vunion.graph.VEdgeType;
+import com.github.bamirov.vunion.graph.VElement;
 import com.github.bamirov.vunion.graph.VVertex;
 import com.github.bamirov.vunion.graph.VVertexType;
 import com.github.bamirov.vunion.graphstream.serialization.JSONGraphDiffSerializer;
@@ -99,5 +100,46 @@ public class VGraphDiff<V extends Comparable<V>, I> {
 	@SuppressWarnings("unchecked")
 	public String toString() {
 		return serializer.serializeGraphDiff(this).toString();
+	}
+
+	public VElement<V, I> getElement(I elementId) {
+		VElement<V, I> element = null;
+
+		element = getVertexType(elementId);
+		if (element != null) return element;
+		
+		element = getVertex(elementId);
+		if (element != null) return element;
+		
+		element = getEdgeType(elementId);
+		if (element != null) return element;
+		
+		element = getEdge(elementId);
+		
+		return element;
+	}
+
+	public VVertexType<V, I> getVertexType(I elementId) {
+		if (getVertexTypes().isPresent())
+			return getVertexTypes().get().get(elementId);
+		return null;
+	}
+	
+	public VVertex<V, I> getVertex(I elementId) {
+		if (getVertexes().isPresent())
+			return getVertexes().get().get(elementId);
+		return null;
+	}
+	
+	public VEdgeType<V, I> getEdgeType(I elementId) {
+		if (getEdgeTypes().isPresent())
+			return getEdgeTypes().get().get(elementId);
+		return null;
+	}
+	
+	public VEdge<V, I> getEdge(I elementId) {
+		if (getEdges().isPresent())
+			return getEdges().get().get(elementId);
+		return null;
 	}
 }

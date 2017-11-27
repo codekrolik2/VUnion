@@ -30,7 +30,7 @@ import lombok.RequiredArgsConstructor;
 @AllArgsConstructor
 @RequiredArgsConstructor
 class VSubgraphCache<V extends Comparable<V>, I> {
-	protected String name;
+	protected final String name;
 	
 	//subgraphVersionTo is always max subgraphVersion
 	protected V subgraphVersionTo;
@@ -45,7 +45,7 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 	protected Map<I, Set<I>> vertexesByType = new HashMap<>();
 	protected Map<I, Set<I>> edgesByType = new HashMap<>();
 	
-	protected Optional<SubgraphElementRecord<V, I>> subgraphElementRecord = Optional.empty();
+	protected Optional<VSubgraphElementRecord<V, I>> subgraphElementRecord = Optional.empty();
 	
 	//TODO: this method is probably not needed, since subgraphVersionTo is always max subgraphVersion
 	public V getSubgraphVersion() {
@@ -53,7 +53,7 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 		List<V> list = (List<V>)Arrays.asList(new Object[] {
 				subgraphVersionTo,
 				elementSyncVersion.isPresent() ? elementSyncVersion.get() : null,
-				subgraphElementRecord.isPresent() ? subgraphElementRecord.get().subgraphElementVersion : null
+				subgraphElementRecord.isPresent() ? subgraphElementRecord.get().getSubgraphElementUpdateVersion() : null
 		});
 		return Collections.max(list);
 	}
@@ -66,6 +66,9 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 		
 		VElement<V, I> linkedElement = sharedElementRec.getElement();
 		removeElementFromTypeIndex(linkedElement);
+		
+		//decrement reference count on shared elements
+		graphCache.decrementReferenceCount(cacheLink.getElementId());
 	}
 	
 	protected void removeElementFromTypeIndex(VElement<V, I> linkedElement) {
@@ -87,16 +90,13 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 		subgraphTimeline.put(newCacheLink.getTimelineVersion(), newCacheLink);
 		subgraphLinksByElementId.put(newCacheLink.getElementId(), newCacheLink);
 		
-		VElement<V, I> linkedElement = null;
-		if (graphDiff.getEdges().isPresent())
-			linkedElement = graphDiff.getEdges().get().get(newCacheLink.getElementId());
-		
-		if ((linkedElement == null) && (graphDiff.getVertexes().isPresent()))
-			linkedElement = graphDiff.getVertexes().get().get(newCacheLink.getElementId());
+		VElement<V, I> linkedElement = graphDiff.getElement(newCacheLink.getElementId());
 
 		//If element is VVertex or VEdge, add to TypeIndex
-		if (linkedElement != null)
-			addElementToTypeIndex(linkedElement);
+		addElementToTypeIndex(linkedElement);
+		
+		//increment reference count on shared elements
+		graphCache.incrementReferenceCount(linkedElement);
 	}
 
 	protected void addElementToTypeIndex(VElement<V, I> linkedElement) {
@@ -108,7 +108,7 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 				vertexesByType.put(((VVertex<V, I>)linkedElement).getVertexTypeId(), vertexes);
 			}
 			
-			vertexes.remove(linkedElement.getElementId());
+			vertexes.add(linkedElement.getElementId());
 		} else if (linkedElement instanceof VEdge) {
 			Set<I> edges = edgesByType.get(((VEdge<V, I>)linkedElement).getEdgeTypeId());
 			
@@ -116,13 +116,13 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 				edges = new HashSet<>();
 				edgesByType.put(((VEdge<V, I>)linkedElement).getEdgeTypeId(), edges);
 			}
-
-			edges.remove(linkedElement.getElementId());
+			
+			edges.add(linkedElement.getElementId());
 		}
 	}
 	
 	public void applySubgraphDiff(VSubgraphDiff<V, I> diff, VGraphDiff<V, I> graphDiff, 
-			VGraphCache<V, I> graphCache) throws GraphMismatchException {
+			VGraphCache<V, I> graphCache, List<I> orphanElements) throws GraphMismatchException {
 		//1. Subgraph name must match
 		if (!diff.getName().equals(name))
 			throw new GraphMismatchException(
@@ -137,12 +137,12 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 			VSubgraphElementRecord<V, I> diffSeRecord = diff.getSubgraphElementRecord().get();
 			
 			if (subgraphElementRecord.isPresent()) {
-				SubgraphElementRecord<V, I> subgraphElementRec = subgraphElementRecord.get();
+				VSubgraphElementRecord<V, I> subgraphElementRec = subgraphElementRecord.get();
 				
-				subgraphElementRec.subgraphElementVersion = diffSeRecord.getSubgraphElementUpdateVersion();
-				subgraphElementRec.subgraphElement = diffSeRecord.getSubgraphElement();
+				subgraphElementRec.setSubgraphElementUpdateVersion(diffSeRecord.getSubgraphElementUpdateVersion());
+				subgraphElementRec.setSubgraphElement(diffSeRecord.getSubgraphElement());
 			} else {
-				SubgraphElementRecord<V, I> seRecord = new SubgraphElementRecord<>(diffSeRecord.getSubgraphElementUpdateVersion(), 
+				VSubgraphElementRecord<V, I> seRecord = new VSubgraphElementRecord<>(diffSeRecord.getSubgraphElementUpdateVersion(), 
 						diffSeRecord.getSubgraphElement());
 				subgraphElementRecord = Optional.of(seRecord);
 			}

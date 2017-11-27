@@ -7,9 +7,11 @@ import com.github.bamirov.vunion.graph.VSubgraphElement;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.Setter;
 
 @Builder
 @Getter
+@Setter
 @EqualsAndHashCode
 public class VSubgraphElementRecord<V extends Comparable<V>, I> {
 	protected V subgraphElementUpdateVersion;

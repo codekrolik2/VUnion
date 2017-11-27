@@ -12,7 +12,6 @@ import com.github.bamirov.vunion.exceptions.GraphVersionMismatchException;
 import com.github.bamirov.vunion.graph.VEdge;
 import com.github.bamirov.vunion.graph.VEdgeType;
 import com.github.bamirov.vunion.graph.VElement;
-import com.github.bamirov.vunion.graph.VGraphElement;
 import com.github.bamirov.vunion.graph.VLink;
 import com.github.bamirov.vunion.graph.VVertex;
 import com.github.bamirov.vunion.graph.VVertexType;
@@ -86,47 +85,6 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 							subgraphDiff.getName(),
 							elementId.toString())
 				);
-	}
-
-	private VVertexType<V, I> getVertexTypeFromDiff(I elementId, VGraphDiff<V, I> diff) {
-		if (diff.getVertexTypes().isPresent())
-			return diff.getVertexTypes().get().get(elementId);
-		return null;
-	}
-	
-	private VVertex<V, I> getVertexFromDiff(I elementId, VGraphDiff<V, I> diff) {
-		if (diff.getVertexes().isPresent())
-			return diff.getVertexes().get().get(elementId);
-		return null;
-	}
-	
-	private VEdgeType<V, I> getEdgeTypeFromDiff(I elementId, VGraphDiff<V, I> diff) {
-		if (diff.getEdgeTypes().isPresent())
-			return diff.getEdgeTypes().get().get(elementId);
-		return null;
-	}
-	
-	private VEdge<V, I> getEdgeFromDiff(I elementId, VGraphDiff<V, I> diff) {
-		if (diff.getEdges().isPresent())
-			return diff.getEdges().get().get(elementId);
-		return null;
-	}
-	
-	private VElement<V, I> getElementFromGraphDiff(I elementId, VGraphDiff<V, I> diff) {
-		VElement<V, I> element = null;
-
-		element = getVertexTypeFromDiff(elementId, diff);
-		if (element != null) return element;
-		
-		element = getVertexFromDiff(elementId, diff);
-		if (element != null) return element;
-		
-		element = getEdgeTypeFromDiff(elementId, diff);
-		if (element != null) return element;
-		
-		element = getEdgeFromDiff(elementId, diff);
-		
-		return element;
 	}
 	
 	private void checkElement(Set<I> referencedElementsSet, VElement<V, I> elm) throws GraphMismatchException {
@@ -227,7 +185,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 			//Graph diff should have updated Element, and element should be instance of provided type
 			if (diffElementLink.getLinkedElementVersionUpdate().isPresent()) {
 				//If subgraph diff has Element link, Element should also exist in graph diff
-				VElement<V, I> elementFromDiff = getElementFromGraphDiff(elementId, graphDiff);
+				VElement<V, I> elementFromDiff = graphDiff.getElement(elementId);
 				
 				//Element should also exist in graph diff
 				if (elementFromDiff == null) {
@@ -410,13 +368,13 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 				}
 			}
 			
-			Optional<VGraphElement<V, I>> cacheGraphElementOpt = cache.getGraphElement();
+			Optional<VGraphElementRecord<V, I>> cacheGraphElementOpt = cache.getGraphElementRecord();
 			if (cacheGraphElementOpt.isPresent()) {
-				if (ger.getGraphElementUpdateVersion().compareTo(cacheGraphElementOpt.get().getVersion()) <= 0) {
+				if (ger.getGraphElementUpdateVersion().compareTo(cacheGraphElementOpt.get().getGraphElementUpdateVersion()) <= 0) {
 					throw new GraphMismatchException(
 						String.format("GraphElementRecord inconsistent: [GraphElementUpdateVersion: [%s] <= cache GraphElement.Version: [%s]]",
 								ger.getGraphElementUpdateVersion().toString(),
-								cacheGraphElementOpt.get().getVersion().toString())
+								cacheGraphElementOpt.get().getGraphElementUpdateVersion().toString())
 					);
 				}
 			}
@@ -560,12 +518,12 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 			if (subgraphCache != null) {
 				if (subgraphCache.getSubgraphElementRecord().isPresent()) {
 					if (subgraphElementRecord.getSubgraphElementUpdateVersion().compareTo(
-							subgraphCache.getSubgraphElementRecord().get().getSubgraphElementVersion()) <= 0) {
+							subgraphCache.getSubgraphElementRecord().get().getSubgraphElementUpdateVersion()) <= 0) {
 						throw new GraphMismatchException(
 							String.format("SubgraphElementRecord inconsistent: [Subgraph [%s]: SubgraphElementUpdateVersion: [%s] <= cache SubgraphElement.Version: [%s]]",
 									subgraphDiff.getName(),
 									subgraphElementRecord.getSubgraphElementUpdateVersion().toString(), 
-									subgraphCache.getSubgraphElementRecord().get().getSubgraphElementVersion().toString())
+									subgraphCache.getSubgraphElementRecord().get().getSubgraphElementUpdateVersion().toString())
 						);
 					}
 				}
@@ -632,7 +590,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 						VElement<V, I> elm = null;
 						
 						if (subgraphDiff.getLinkUpdatesByElementId().isPresent())
-							elm = getElementFromGraphDiff(linkedElementId, graphDiff);
+							elm = graphDiff.getElement(linkedElementId);
 						
 						if (elm == null) {
 							SharedElementRec<V, I> elementRec = cacheSharedElements.get(linkedElementId);
@@ -779,7 +737,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 					//add updated referenced element to check 
 					referencedElementsSet.add(linkedElmId);
 					
-					VElement<V, I> linkedElmFromDiff = getElementFromGraphDiff(linkedElmId, graphDiff);
+					VElement<V, I> linkedElmFromDiff = graphDiff.getElement(linkedElmId);
 					
 					SharedElementRec<V, I> sharedElement = cacheSharedElements.get(linkedElmId);
 					
