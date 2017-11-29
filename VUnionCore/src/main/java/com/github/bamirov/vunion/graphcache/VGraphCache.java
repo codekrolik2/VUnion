@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -12,8 +13,13 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.github.bamirov.vunion.exceptions.GraphMismatchException;
+import com.github.bamirov.vunion.graph.VEdge;
+import com.github.bamirov.vunion.graph.VEdgeType;
 import com.github.bamirov.vunion.graph.VElement;
 import com.github.bamirov.vunion.graph.VLink;
+import com.github.bamirov.vunion.graph.VVertex;
+import com.github.bamirov.vunion.graph.VVertexType;
+import com.github.bamirov.vunion.graphstream.VGraphDestroyedRecord;
 import com.github.bamirov.vunion.graphstream.VGraphDiff;
 import com.github.bamirov.vunion.graphstream.VGraphElementRecord;
 import com.github.bamirov.vunion.graphstream.VSubgraphDiff;
@@ -44,7 +50,7 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 
 	protected ReentrantReadWriteLock updateLock = new ReentrantReadWriteLock();
 	
-	
+	protected VComparator<V> vComparator = new VComparator<>();
 	
 	protected V getGraphUpdateVersion() {
 		@SuppressWarnings("unchecked")
@@ -79,7 +85,7 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 		return false;
 	}
 	
-	public void removeSubgraphCache(VSubgraphCache<V, I> subgraphCache, List<I> orphanElements) {
+	protected void removeSubgraphCache(VSubgraphCache<V, I> subgraphCache) {
 		for (VLink<V, I> link : subgraphCache.getSubgraphLinksByElementId().values())
 			decrementReferenceCount(link.getElementId());
 		
@@ -88,100 +94,191 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 	
 	@Override
 	public void applyGraphDiff(VGraphDiff<V, I> diff) throws GraphMismatchException {
-		//1. Subgraph name must match
-		if (!diff.getGraphName().equals(graphName))
-			throw new GraphMismatchException(
-					String.format("Graph name doesn't match: diff [%s] cache [%s]", 
-							diff.getGraphName(), graphName));
-		
-		//2. Update destroyed status
-		if (diff.getDestroyedRecord().isPresent()) {
-			destroyRecoverVersion = Optional.of(diff.getDestroyedRecord().get().getDestroyRecoverVersion());
-			isDestroyed = diff.getDestroyedRecord().get().isDestroyed();
+		updateLock.writeLock().lock();
+		try {
+			//1. Subgraph name must match
+			if (!diff.getGraphName().equals(graphName))
+				throw new GraphMismatchException(
+						String.format("Graph name doesn't match: diff [%s] cache [%s]", 
+								diff.getGraphName(), graphName));
 			
-			//Remove all data (except for delete info)
-			graphElementRecord = Optional.empty();
-			sharedElements.clear();
-			subgraphs.clear();
-		}
-		
-		//3. Check graph diff
-		//TODO: Check graph diff - after cache is updated, fix
-		graphDiffChecker.sanityCheckGraphDiff(this, diff);
-		
-		/*
-		  TODO: This is how it initially was, do I need it here or above?
-		  
-		 if (diff.getDestroyedRecord().isPresent()) {
-			//If destroyed record is present, remove all data (except for destroyed info)
-			graphElement = Optional.empty();
-			sharedElements.clear();
-			subgraphs.clear();
-		}*/
-		
-		//4. Update graph element
-		if (diff.getGraphElementRecord().isPresent()) {
-			VGraphElementRecord<V, I> diffGERecord = diff.getGraphElementRecord().get();
-			
-			if (graphElementRecord.isPresent()) {
-				VGraphElementRecord<V, I> graphElementRec = graphElementRecord.get();
+			//2. Update destroyed status
+			if (diff.getDestroyedRecord().isPresent()) {
+				destroyRecoverVersion = Optional.of(diff.getDestroyedRecord().get().getDestroyRecoverVersion());
+				isDestroyed = diff.getDestroyedRecord().get().isDestroyed();
 				
-				graphElementRec.setGraphElementUpdateVersion(diffGERecord.getGraphElementUpdateVersion());
-				graphElementRec.setGraphElement(diffGERecord.getGraphElement());
-			} else {
-				VGraphElementRecord<V, I> geRecord = new VGraphElementRecord<>(diffGERecord.getGraphElementUpdateVersion(), 
-						diffGERecord.getGraphElement());
-				graphElementRecord = Optional.of(geRecord);
+				//Remove all data (except for delete info)
+				graphElementRecord = Optional.empty();
+				sharedElements.clear();
+				subgraphs.clear();
 			}
-		}
-
-		List<I> orphanElements = new ArrayList<I>();
-		//5. Subgraphs sync
-		if (diff.getSubgraphSync().isPresent()) {
-			VSubgraphSyncRecord<V> ss = diff.getSubgraphSync().get();
-			Set<String> activeSubgraphs = ss.getSubgraphNames();
-			V subgraphSyncV = ss.getSubgraphSyncVersion();
 			
-			subgraphSyncVersion = Optional.of(subgraphSyncV);
+			//3. Check graph diff
+			//TODO: Check graph diff - after cache is updated, fix
+			graphDiffChecker.sanityCheckGraphDiff(this, diff);
 			
-			List<VSubgraphCache<V, I>> removedSubgraphCaches = new ArrayList<VSubgraphCache<V, I>>();
-			for (VSubgraphCache<V, I> subgraphCache : subgraphs.values())
-				if (!activeSubgraphs.contains(subgraphCache.getName()))
-					removedSubgraphCaches.add(subgraphCache);
+			/*
+			  TODO: This is how it initially was, do I need it here or above?
+			 
+			 if (diff.getDestroyedRecord().isPresent()) {
+				//If destroyed record is present, remove all data (except for destroyed info)
+				graphElement = Optional.empty();
+				sharedElements.clear();
+				subgraphs.clear();
+			}*/
 			
-			//remove graphs, decrement reference count on shared elements
-			for (VSubgraphCache<V, I> subgraphCache : removedSubgraphCaches)
-				removeSubgraphCache(subgraphCache, orphanElements);
-		}
-		
-		//6. Apply subgraphs diffs
-		if (diff.getSubgraphs().isPresent()) {
-			Map<String, VSubgraphDiff<V, I>> subgraphMap = diff.getSubgraphs().get();
-			
-			for (VSubgraphDiff<V, I> subgraphDiff : subgraphMap.values()) {
-				VSubgraphCache<V, I> subgraphCache = subgraphs.get(subgraphDiff.getName());
+			//4. Update graph element
+			if (diff.getGraphElementRecord().isPresent()) {
+				VGraphElementRecord<V, I> diffGERecord = diff.getGraphElementRecord().get();
 				
-				if (subgraphCache == null) {
-					subgraphCache = new VSubgraphCache<V, I>(subgraphDiff.getName());
-					subgraphs.put(subgraphDiff.getName(), subgraphCache);
+				if (graphElementRecord.isPresent()) {
+					VGraphElementRecord<V, I> graphElementRec = graphElementRecord.get();
+					
+					graphElementRec.setGraphElementUpdateVersion(diffGERecord.getGraphElementUpdateVersion());
+					graphElementRec.setGraphElement(diffGERecord.getGraphElement());
+				} else {
+					VGraphElementRecord<V, I> geRecord = new VGraphElementRecord<>(diffGERecord.getGraphElementUpdateVersion(), 
+							diffGERecord.getGraphElement());
+					graphElementRecord = Optional.of(geRecord);
 				}
-				
-				//add reference count on shared elements
-				subgraphCache.applySubgraphDiff(subgraphDiff, diff, this, orphanElements);
 			}
+	
+			//5. Subgraphs sync
+			if (diff.getSubgraphSync().isPresent()) {
+				VSubgraphSyncRecord<V> ss = diff.getSubgraphSync().get();
+				Set<String> activeSubgraphs = ss.getSubgraphNames();
+				V subgraphSyncV = ss.getSubgraphSyncVersion();
+				
+				subgraphSyncVersion = Optional.of(subgraphSyncV);
+				
+				List<VSubgraphCache<V, I>> removedSubgraphCaches = new ArrayList<VSubgraphCache<V, I>>();
+				for (VSubgraphCache<V, I> subgraphCache : subgraphs.values())
+					if (!activeSubgraphs.contains(subgraphCache.getName()))
+						removedSubgraphCaches.add(subgraphCache);
+				
+				//remove graphs, decrement reference count on shared elements
+				for (VSubgraphCache<V, I> subgraphCache : removedSubgraphCaches)
+					removeSubgraphCache(subgraphCache);
+			}
+			
+			//6. Apply subgraphs diffs
+			if (diff.getSubgraphs().isPresent()) {
+				Map<String, VSubgraphDiff<V, I>> subgraphMap = diff.getSubgraphs().get();
+				
+				for (VSubgraphDiff<V, I> subgraphDiff : subgraphMap.values()) {
+					VSubgraphCache<V, I> subgraphCache = subgraphs.get(subgraphDiff.getName());
+					
+					if (subgraphCache == null) {
+						subgraphCache = new VSubgraphCache<V, I>(subgraphDiff.getName());
+						subgraphs.put(subgraphDiff.getName(), subgraphCache);
+					}
+					
+					//add reference count on shared elements
+					subgraphCache.applySubgraphDiff(subgraphDiff, diff, this);
+				}
+			}
+		} finally {
+			updateLock.writeLock().unlock();
 		}
 	}
 	
 	@Override
-	public VGraphDiff<V, I> getGraphDiff(VGraphVersion<V> from) {
-		// TODO Auto-generated method stub
-		
-		//For test purposes, sanityCheckGraphDiff(...) before returning
-		
-		return null;
+	public VGraphDiff<V, I> getGraphDiff(VGraphVersion<V> originalFrom) {
+		updateLock.readLock().lock();
+		try {
+			VGraphVersion<V> from = originalFrom;
+			
+			Optional<VGraphDestroyedRecord<V>> destroyedRecord = Optional.empty();
+			Optional<VGraphElementRecord<V, I>> graphElementRecordOpt = Optional.empty();
+			Optional<VSubgraphSyncRecord<V>> subgraphSync = Optional.empty();
+			Optional<Map<String, VSubgraphDiff<V, I>>> subgraphsOpt = Optional.empty();
+			
+			Optional<Map<I, VVertexType<V, I>>> vertexTypes = Optional.empty();
+			Optional<Map<I, VVertex<V, I>>> vertexes = Optional.empty();
+			Optional<Map<I, VEdgeType<V, I>>> edgeTypes = Optional.empty();
+			Optional<Map<I, VEdge<V, I>>> edges = Optional.empty();
+			
+			if (destroyRecoverVersion.isPresent() && (vComparator.compare(destroyRecoverVersion, from.getGraphVersion()) > 0)) {
+				destroyedRecord = Optional.of(
+					new VGraphDestroyedRecord<V>(destroyRecoverVersion.get(), 
+							isDestroyed())
+				);
+				
+				from = VGraphVersion.getEmptyGraphVersion();
+			}
+	
+			if (!isDestroyed()) {
+				if (graphElementRecord.isPresent()) {
+					if (vComparator.compare(graphElementRecord.get().getGraphElementUpdateVersion(), from.getGraphVersion()) > 0) {
+						graphElementRecordOpt = Optional.of(new VGraphElementRecord<V, I>(
+								graphElementRecord.get().getGraphElementUpdateVersion(),
+								graphElementRecord.get().getGraphElement()
+							));
+					}
+				}
+				
+				if (subgraphSyncVersion.isPresent()) {
+					if (vComparator.compare(subgraphSyncVersion.get(), from.getGraphVersion()) > 0) {
+						Set<String> subgraphNames = new HashSet<>();
+						for(String key : subgraphs.keySet())
+							subgraphNames.add(key);
+						
+						subgraphSync = Optional.of(new VSubgraphSyncRecord<V>(subgraphSyncVersion.get(), subgraphNames));
+					}
+				}
+				
+				Set<I> includedElements = new HashSet<>();
+				if (!subgraphs.isEmpty()) {
+					Map<String, VSubgraphDiff<V, I>> subgraphsMap = new HashMap<>();
+					
+					for (VSubgraphCache<V, I> subgraphCache : subgraphs.values()) {
+						V subgraphVersion = from.getSubgraphVersions().get(subgraphCache.getName());
+						
+						VSubgraphDiff<V, I> subgraphDiff = subgraphCache.getDiff(subgraphVersion);
+						subgraphsMap.put(subgraphCache.getName(), subgraphDiff);
+						
+						if (subgraphDiff.getLinkUpdatesByElementId().isPresent())
+						for (I elementId : subgraphDiff.getLinkUpdatesByElementId().get().keySet())
+							includedElements.add(elementId);
+					}
+					
+					if (!subgraphsMap.isEmpty())
+						subgraphsOpt = Optional.of(subgraphsMap);
+				}
+				
+				Map<I, VVertexType<V, I>> vertexTypesMap = new HashMap<>();
+				Map<I, VVertex<V, I>> vertexesMap = new HashMap<>();
+				Map<I, VEdgeType<V, I>> edgeTypesMap = new HashMap<>();
+				Map<I, VEdge<V, I>> edgesMap = new HashMap<>();
+				
+				for (I elementId : includedElements) {
+					SharedElementRec<V, I> seRec = sharedElements.get(elementId);
+					if (seRec.element instanceof VVertexType)
+						vertexTypesMap.put(elementId, (VVertexType<V, I>)seRec.element);
+					else if (seRec.element instanceof VVertex)
+						vertexesMap.put(elementId, (VVertex<V, I>)seRec.element);
+					else if (seRec.element instanceof VEdgeType)
+						edgeTypesMap.put(elementId, (VEdgeType<V, I>)seRec.element);
+					else if (seRec.element instanceof VEdge)
+						edgesMap.put(elementId, (VEdge<V, I>)seRec.element);
+				}
+				
+				if (!vertexTypesMap.isEmpty()) vertexTypes = Optional.of(vertexTypesMap);
+				if (!vertexesMap.isEmpty()) vertexes = Optional.of(vertexesMap);
+				if (!edgeTypesMap.isEmpty()) edgeTypes = Optional.of(edgeTypesMap);
+				if (!edgesMap.isEmpty()) edges = Optional.of(edgesMap);
+			}
+			
+			VGraphDiff<V, I> diff = new VGraphDiff<>(originalFrom, graphName, vertexTypes, vertexes,
+					edgeTypes, edges, subgraphsOpt, subgraphSync, destroyedRecord, graphElementRecordOpt);
+			
+			return diff;
+		} finally {
+			updateLock.readLock().unlock();
+		}
 	}
 	
-	public void incrementReferenceCount(VElement<V, I> linkedElement) {
+	protected void incrementReferenceCount(VElement<V, I> linkedElement) {
 		SharedElementRec<V, I> elementRec = sharedElements.get(linkedElement.getElementId());
 		
 		if (elementRec != null) {
@@ -194,7 +291,7 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 		}
 	}
 	
-	public void decrementReferenceCount(I elementId) {
+	protected void decrementReferenceCount(I elementId) {
 		SharedElementRec<V, I> elementRec = sharedElements.get(elementId);
 		elementRec.refCount--;
 		if (elementRec.refCount == 0)

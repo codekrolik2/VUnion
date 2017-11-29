@@ -16,6 +16,7 @@ import com.github.bamirov.vunion.graph.VEdge;
 import com.github.bamirov.vunion.graph.VElement;
 import com.github.bamirov.vunion.graph.VLink;
 import com.github.bamirov.vunion.graph.VVertex;
+import com.github.bamirov.vunion.graphstream.VElementSyncRecord;
 import com.github.bamirov.vunion.graphstream.VGraphDiff;
 import com.github.bamirov.vunion.graphstream.VLinkDiff;
 import com.github.bamirov.vunion.graphstream.VLinkUpdate;
@@ -46,6 +47,8 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 	protected Map<I, Set<I>> edgesByType = new HashMap<>();
 	
 	protected Optional<VSubgraphElementRecord<V, I>> subgraphElementRecord = Optional.empty();
+	
+	protected VComparator<V> vComparator = new VComparator<>();
 	
 	//TODO: this method is probably not needed, since subgraphVersionTo is always max subgraphVersion
 	public V getSubgraphVersion() {
@@ -122,7 +125,7 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 	}
 	
 	public void applySubgraphDiff(VSubgraphDiff<V, I> diff, VGraphDiff<V, I> graphDiff, 
-			VGraphCache<V, I> graphCache, List<I> orphanElements) throws GraphMismatchException {
+			VGraphCache<V, I> graphCache) throws GraphMismatchException {
 		//1. Subgraph name must match
 		if (!diff.getName().equals(name))
 			throw new GraphMismatchException(
@@ -247,5 +250,66 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 				subgraphTimeline.put(oldCacheLink.getTimelineVersion(), oldCacheLink);
 			}
 		}
+	}
+	
+	public VSubgraphDiff<V, I> getDiff(V subgraphVersionFrom) {
+		Optional<VSubgraphElementRecord<V, I>> diffSubgraphElementRecord = Optional.empty();
+		if (subgraphElementRecord.isPresent()) {
+			VSubgraphElementRecord<V, I> subgraphElementRec = subgraphElementRecord.get();
+			if (vComparator.compare(subgraphElementRec.getSubgraphElementUpdateVersion(), subgraphVersionFrom) > 0) {
+				diffSubgraphElementRecord = Optional.of(new VSubgraphElementRecord<V, I>(
+					subgraphElementRec.getSubgraphElementUpdateVersion(),
+					subgraphElementRec.getSubgraphElement()
+				));
+			}
+		}
+		
+		Optional<VElementSyncRecord<V, I>> elementSync = Optional.empty();
+		if (elementSyncVersion.isPresent()) {
+			if (vComparator.compare(elementSyncVersion.get(), subgraphVersionFrom) > 0) {
+				V elementSyncV = elementSyncVersion.get();
+				Set<I> elementIds = new HashSet<I>();
+				elementIds.addAll(subgraphLinksByElementId.keySet());
+				
+				VElementSyncRecord<V, I> elementSyncRecord = new VElementSyncRecord<>(elementSyncV, elementIds);
+				elementSync = Optional.of(elementSyncRecord);
+			}
+		}
+		
+		Optional<Map<I, VLinkDiff<V, I>>> linkUpdatesByElementId = Optional.empty();
+		Map<V, VLink<V, I>> tailMap = subgraphVersionFrom == null ?
+				subgraphTimeline
+				: subgraphTimeline.tailMap(subgraphVersionFrom, false);
+		
+		if (!tailMap.isEmpty()) {
+			Map<I, VLinkDiff<V, I>> diffLinkUpdatesByElementIdMap = new HashMap<>();
+			for (VLink<V, I> link : tailMap.values()) {
+				I linkId = link.getElementId();
+				I linkedElementId = link.getLinkElementId();
+				
+				Optional<VLinkUpdate<V, I>> linkUpdateOpt = Optional.empty();
+				Optional<V> linkedElementVersionUpdate = Optional.empty();
+				
+				if (vComparator.compare(link.getVersion(), subgraphVersionFrom) > 0) {
+					V version = link.getVersion();
+					Optional<String> key = link.getKey();
+					String content = link.getContent();
+					boolean isTombstone = link.isTombstone();
+					
+					VLinkUpdate<V, I> linkUpdate = new VLinkUpdate<V, I>(linkId, version, key, content, isTombstone);
+					linkUpdateOpt = Optional.of(linkUpdate);
+				}
+				
+				if (vComparator.compare(link.getLinkElementVersion(), subgraphVersionFrom) > 0)
+					linkedElementVersionUpdate = Optional.of(link.getLinkElementVersion());
+				
+				VLinkDiff<V, I> linkDiff = new VLinkDiff<>(linkId, linkedElementId, linkUpdateOpt, linkedElementVersionUpdate);
+				diffLinkUpdatesByElementIdMap.put(linkedElementId, linkDiff);
+			}
+		}
+		
+		VSubgraphDiff<V, I> subgraphDiff = new VSubgraphDiff<V, I>(name, subgraphVersionTo, 
+				linkUpdatesByElementId, elementSync, diffSubgraphElementRecord);
+		return subgraphDiff;
 	}
 }
