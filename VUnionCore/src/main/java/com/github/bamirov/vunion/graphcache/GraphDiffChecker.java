@@ -47,6 +47,10 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 		builder.append(str);
 	}
 	
+	protected boolean elementExists(I elementId, VGraphDiff<V, I> diff, VGraphCache<V, I> graphCache) {
+		return ((diff.getElement(elementId) != null) || (graphCache.sharedElements.containsKey(elementId)));
+	}
+	
 	protected boolean isElementDeleted(I elementId, VSubgraphDiff<V, I> subgraphDiff, VSubgraphCache<V, I> subgraphCache) throws GraphMismatchException {
 		if (subgraphDiff.getElementSync().isPresent())
 			return (!subgraphDiff.getElementSync().get().getElementIds().contains(elementId));
@@ -87,7 +91,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 				);
 	}
 	
-	private void checkElement(Set<I> referencedElementsSet, VElement<V, I> elm) throws GraphMismatchException {
+	protected void checkElement(Set<I> referencedElementsSet, VElement<V, I> elm) throws GraphMismatchException {
 		if (!referencedElementsSet.contains(elm.getElementId())) {
 			throw new GraphMismatchException(
 					String.format("LinkUpdates error: Updated element doesn't exist in diff ElementId [%s]. ",
@@ -97,7 +101,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 		}
 	}
 	
-	private void checkGraphDiffElements(Set<I> referencedElementsSet, VGraphDiff<V, I> diff) throws GraphMismatchException {
+	protected void checkGraphDiffElements(Set<I> referencedElementsSet, VGraphDiff<V, I> diff) throws GraphMismatchException {
 		int elementCount = 0;
 		
 		if (diff.getVertexTypes().isPresent()) {
@@ -300,7 +304,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 			}
 	}
 	
-	protected void sanityCheckGraphDiff(VGraphCache<V, I> cache, VGraphDiff<V, I> graphDiff) throws GraphVersionMismatchException, GraphMismatchException {
+	protected void sanityCheckGraphDiff(VGraphCache<V, I> cache, VGraphDiff<V, I> graphDiff, boolean relaxedEdgeCheck) throws GraphVersionMismatchException, GraphMismatchException {
 		String graphName = cache.getGraphName();
 		//1. Graph name must match
 		if (!graphName.equals(graphDiff.getGraphName()))
@@ -438,7 +442,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 			for (VSubgraphDiff<V, I> subgraphDiff : graphDiff.getSubgraphs().get().values()) {
 				VSubgraphCache<V, I> subgraphCache = cacheSubgraphs.get(subgraphDiff.getName());
 				
-				checkSubgraph(subgraphDiff, graphDiff, subgraphCache, cache, referencedElementsSet);
+				checkSubgraph(subgraphDiff, graphDiff, subgraphCache, cache, referencedElementsSet, relaxedEdgeCheck);
 			}
 			
 			//Check that all diff elements were referenced at least once
@@ -446,11 +450,11 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 		}
 	}
 	
-	public void checkSubgraph(VSubgraphDiff<V, I> subgraphDiff, VGraphDiff<V, I> graphDiff, VSubgraphCache<V, I> subgraphCache, VGraphCache<V, I> cache, 
-			Set<I> referencedElementsSet) throws GraphMismatchException {
+	public void checkSubgraph(VSubgraphDiff<V, I> subgraphDiff, VGraphDiff<V, I> graphDiff, VSubgraphCache<V, I> subgraphCache, 
+			VGraphCache<V, I> cache, Set<I> referencedElementsSet, boolean relaxedEdgeCheck) throws GraphMismatchException {
 		Map<I, SharedElementRec<V, I>> cacheSharedElements = cache.getSharedElements();
 		
-		//Fill Diff Vertexes by Type, Diff Edges by Type
+		//0. Fill Diff Vertexes by Type, Diff Edges by Type
 		Map<I, Set<I>> diffVertexesByType = new HashMap<>();
 		Map<I, Set<I>> diffEdgesByType = new HashMap<>();
 		
@@ -670,6 +674,8 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 							I vertexFromId = edge.getVertexFromId();
 							I vertexToId = edge.getVertexToId();
 							
+							//For relaxedEdgeCheck - do not check vertex if it doesn't exist
+							if ((!relaxedEdgeCheck) || (elementExists(vertexFromId, graphDiff, cache)))
 							if (!isElementTombstonedOrDeleted(vertexFromId, subgraphDiff, subgraphCache))
 								throw new GraphMismatchException(
 										String.format("LinkUpdates error: Edge can't be tombstoned if it's vertexFrom is not tombstoned. Subgraph [%s] edgeId [%s] edge linkId [%s] vertexFromId [%s]",
@@ -679,6 +685,8 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 												vertexFromId.toString())
 										);
 							
+							//For relaxedEdgeCheck - do not check vertex if it doesn't exist
+							if ((!relaxedEdgeCheck) || (elementExists(vertexToId, graphDiff, cache)))
 							if (!isElementTombstonedOrDeleted(vertexToId, subgraphDiff, subgraphCache))
 								throw new GraphMismatchException(
 										String.format("LinkUpdates error: Edge can't be tombstoned if it's vertexTo is not tombstoned. Subgraph [%s] edgeId [%s] edge linkId [%s] vertexToId [%s]",
@@ -808,10 +816,14 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 								VEdgeType.class, cache, ignoreTombstone);
 						
 						//Edge addition checks: both Vertexes should be linked to this subgraph (exist either in cache or diff)
+
+						//For relaxedEdgeCheck - do not check vertex if it doesn't exist
+						if ((!relaxedEdgeCheck) || (elementExists(vertexFromId, graphDiff, cache)))
 						findElementInSubgraphDiffOrCache(vertexFromId, subgraphDiff, graphDiff, subgraphCache, 
 								String.format("VertexFrom for Edge [%s]", linkedElmFromDiff.getElementId().toString()),
 								VVertexType.class, cache, ignoreTombstone);
 						
+						if ((!relaxedEdgeCheck) || (elementExists(vertexFromId, graphDiff, cache)))
 						findElementInSubgraphDiffOrCache(vertexToId, subgraphDiff, graphDiff, subgraphCache, 
 								String.format("VertexTo for Edge [%s]", linkedElmFromDiff.getElementId().toString()),
 								VVertexType.class, cache, ignoreTombstone);

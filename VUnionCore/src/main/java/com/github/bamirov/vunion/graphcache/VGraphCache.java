@@ -19,6 +19,7 @@ import com.github.bamirov.vunion.graph.VElement;
 import com.github.bamirov.vunion.graph.VLink;
 import com.github.bamirov.vunion.graph.VVertex;
 import com.github.bamirov.vunion.graph.VVertexType;
+import com.github.bamirov.vunion.graph.filter.IGraphDiffFilter;
 import com.github.bamirov.vunion.graphstream.VGraphDestroyedRecord;
 import com.github.bamirov.vunion.graphstream.VGraphDiff;
 import com.github.bamirov.vunion.graphstream.VGraphElementRecord;
@@ -28,14 +29,19 @@ import com.github.bamirov.vunion.version.VGraphVersion;
 import com.github.bamirov.vunion.version.VGraphVersion.VGraphVersionBuilder;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 @Getter
+@RequiredArgsConstructor
 public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I> {
 	protected GraphDiffChecker<V, I> graphDiffChecker = new GraphDiffChecker<V, I>();
 
 	//-----------------------------
 	
-	protected String graphName;
+	protected final String graphName;
+
+	//I.e. VertexFrom and VertexTo of an Edge must exist 
+	protected final boolean areEdgesConsistent;
 	
 	protected Optional<V> subgraphSyncVersion = Optional.empty();
 	
@@ -115,7 +121,7 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 			
 			//3. Check graph diff
 			//TODO: Check graph diff - after cache is updated, fix
-			graphDiffChecker.sanityCheckGraphDiff(this, diff);
+			graphDiffChecker.sanityCheckGraphDiff(this, diff, areEdgesConsistent);
 			
 			/*
 			  TODO: This is how it initially was, do I need it here or above?
@@ -183,7 +189,7 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 	}
 	
 	@Override
-	public VGraphDiff<V, I> getGraphDiff(VGraphVersion<V> originalFrom) {
+	public VGraphDiff<V, I> getGraphDiff(VGraphVersion<V> originalFrom, IGraphDiffFilter<V, I> diffFilter) throws GraphMismatchException {
 		updateLock.readLock().lock();
 		try {
 			VGraphVersion<V> from = originalFrom;
@@ -206,7 +212,7 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 				
 				from = VGraphVersion.getEmptyGraphVersion();
 			}
-	
+			
 			if (!isDestroyed()) {
 				if (graphElementRecord.isPresent()) {
 					if (vComparator.compare(graphElementRecord.get().getGraphElementUpdateVersion(), from.getGraphVersion()) > 0) {
@@ -230,16 +236,20 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 				Set<I> includedElements = new HashSet<>();
 				if (!subgraphs.isEmpty()) {
 					Map<String, VSubgraphDiff<V, I>> subgraphsMap = new HashMap<>();
+					ElementTypeFilterInfo<I> typeFilterInfo = new ElementTypeFilterInfo<>(); 
 					
 					for (VSubgraphCache<V, I> subgraphCache : subgraphs.values()) {
-						V subgraphVersion = from.getSubgraphVersions().get(subgraphCache.getName());
-						
-						VSubgraphDiff<V, I> subgraphDiff = subgraphCache.getDiff(subgraphVersion);
-						subgraphsMap.put(subgraphCache.getName(), subgraphDiff);
-						
-						if (subgraphDiff.getLinkUpdatesByElementId().isPresent())
-						for (I elementId : subgraphDiff.getLinkUpdatesByElementId().get().keySet())
-							includedElements.add(elementId);
+						//1) Filter Subgraphs by name
+						if (diffFilter.isSubgraphAllowed(subgraphCache.getName())) {
+							V subgraphVersion = from.getSubgraphVersions().get(subgraphCache.getName());
+							
+							VSubgraphDiff<V, I> subgraphDiff = subgraphCache.getDiff(this, subgraphVersion, diffFilter, typeFilterInfo);
+							subgraphsMap.put(subgraphCache.getName(), subgraphDiff);
+							
+							if (subgraphDiff.getLinkUpdatesByElementId().isPresent())
+							for (I elementId : subgraphDiff.getLinkUpdatesByElementId().get().keySet())
+								includedElements.add(elementId);
+						}
 					}
 					
 					if (!subgraphsMap.isEmpty())

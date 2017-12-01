@@ -13,9 +13,12 @@ import java.util.TreeMap;
 
 import com.github.bamirov.vunion.exceptions.GraphMismatchException;
 import com.github.bamirov.vunion.graph.VEdge;
+import com.github.bamirov.vunion.graph.VEdgeType;
 import com.github.bamirov.vunion.graph.VElement;
 import com.github.bamirov.vunion.graph.VLink;
 import com.github.bamirov.vunion.graph.VVertex;
+import com.github.bamirov.vunion.graph.VVertexType;
+import com.github.bamirov.vunion.graph.filter.IGraphDiffFilter;
 import com.github.bamirov.vunion.graphstream.VElementSyncRecord;
 import com.github.bamirov.vunion.graphstream.VGraphDiff;
 import com.github.bamirov.vunion.graphstream.VLinkDiff;
@@ -36,7 +39,7 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 	//subgraphVersionTo is always max subgraphVersion
 	protected V subgraphVersionTo;
 	//subgraphVersionTo will not necessarily corellate with existing links,
-	//because I want to allow filters that will filter out links and elements inside subgraphs 
+	//because filters might filter out links and elements inside subgraphs 
 	
 	protected Optional<V> elementSyncVersion = Optional.empty();
 	
@@ -51,6 +54,7 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 	protected VComparator<V> vComparator = new VComparator<>();
 	
 	//TODO: this method is probably not needed, since subgraphVersionTo is always max subgraphVersion
+	//TODO: make sure GraphDiffChecker check it
 	public V getSubgraphVersion() {
 		@SuppressWarnings("unchecked")
 		List<V> list = (List<V>)Arrays.asList(new Object[] {
@@ -252,7 +256,129 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 		}
 	}
 	
-	public VSubgraphDiff<V, I> getDiff(V subgraphVersionFrom) {
+	//---
+	
+	protected boolean vertexTypeAllowedByFilter(I vertexTypeId, IGraphDiffFilter<V, I> diffFilter,
+			ElementTypeFilterInfo<I> typeFilterInfo, VGraphCache<V, I> graphCache, String subgraphName) {
+		Boolean filterInfoRes = checkVertexFilterInfo(vertexTypeId, typeFilterInfo);
+		if (filterInfoRes != null) return filterInfoRes;
+		
+		VVertexType<V, I> vertexType = (VVertexType<V, I>)graphCache.sharedElements.get(vertexTypeId).getElement();
+		return vertexTypeAllowedByFilter0(vertexType, diffFilter, typeFilterInfo, graphCache, subgraphName);
+	}
+
+	protected boolean vertexTypeAllowedByFilter(VVertexType<V, I> vertexType, IGraphDiffFilter<V, I> diffFilter,
+			ElementTypeFilterInfo<I> typeFilterInfo, VGraphCache<V, I> graphCache, String subgraphName) {
+		Boolean filterInfoRes = checkVertexFilterInfo(vertexType.getElementId(), typeFilterInfo);
+		if (filterInfoRes != null) return filterInfoRes;
+		
+		return vertexTypeAllowedByFilter0(vertexType, diffFilter, typeFilterInfo, graphCache, subgraphName);
+	}
+	
+	protected Boolean checkVertexFilterInfo(I vertexTypeId, ElementTypeFilterInfo<I> typeFilterInfo) {
+		if (typeFilterInfo.getAllowedVertexTypes().contains(vertexTypeId))
+			return true;
+		if (typeFilterInfo.getProhibitedVertexTypes().contains(vertexTypeId))
+			return false;
+		return null;
+	}
+	
+	protected boolean vertexTypeAllowedByFilter0(VVertexType<V, I> vertexType, IGraphDiffFilter<V, I> diffFilter,
+			ElementTypeFilterInfo<I> typeFilterInfo, VGraphCache<V, I> graphCache, String subgraphName) {
+		boolean allowed = diffFilter.isVertexTypeAllowed(subgraphName, vertexType.getVertexTypeName());
+		
+		if (allowed)
+			typeFilterInfo.getAllowedVertexTypes().add(vertexType.getElementId());
+		else
+			typeFilterInfo.getProhibitedVertexTypes().add(vertexType.getElementId());
+		
+		return allowed;
+	}
+	
+	//---
+	
+	protected boolean edgeTypeAllowedByFilter(I edgeTypeId, IGraphDiffFilter<V, I> diffFilter,
+			ElementTypeFilterInfo<I> typeFilterInfo, VGraphCache<V, I> graphCache, String subgraphName) {
+		Boolean filterInfoRes = checkEdgeFilterInfo(edgeTypeId, typeFilterInfo);
+		if (filterInfoRes != null) return filterInfoRes;
+		
+		VEdgeType<V, I> edgeType = (VEdgeType<V, I>)graphCache.sharedElements.get(edgeTypeId).getElement();
+		return edgeTypeAllowedByFilter0(edgeType, diffFilter, typeFilterInfo, graphCache, subgraphName);
+	}
+
+	protected boolean edgeTypeAllowedByFilter(VEdgeType<V, I> edgeType, IGraphDiffFilter<V, I> diffFilter,
+			ElementTypeFilterInfo<I> typeFilterInfo, VGraphCache<V, I> graphCache, String subgraphName) {
+		Boolean filterInfoRes = checkEdgeFilterInfo(edgeType.getElementId(), typeFilterInfo);
+		if (filterInfoRes != null) return filterInfoRes;
+		
+		return edgeTypeAllowedByFilter0(edgeType, diffFilter, typeFilterInfo, graphCache, subgraphName);
+	}
+	
+	protected Boolean checkEdgeFilterInfo(I edgeTypeId, ElementTypeFilterInfo<I> typeFilterInfo) {
+		if (typeFilterInfo.getAllowedEdgeTypes().contains(edgeTypeId))
+			return true;
+		if (typeFilterInfo.getProhibitedEdgeTypes().contains(edgeTypeId))
+			return false;
+		return null;
+	}
+	
+	protected boolean edgeTypeAllowedByFilter0(VEdgeType<V, I> edgeType, IGraphDiffFilter<V, I> diffFilter,
+			ElementTypeFilterInfo<I> typeFilterInfo, VGraphCache<V, I> graphCache, String subgraphName) {
+		boolean allowed = diffFilter.isEdgeTypeAllowed(subgraphName, edgeType.getEdgeTypeName());
+		
+		if (allowed)
+			typeFilterInfo.getAllowedEdgeTypes().add(edgeType.getElementId());
+		else
+			typeFilterInfo.getProhibitedEdgeTypes().add(edgeType.getElementId());
+		
+		return allowed;
+	}
+	
+	//---
+	
+	protected boolean vertexAllowedByFilter(VVertex<V, I> vertex, IGraphDiffFilter<V, I> diffFilter,
+			ElementTypeFilterInfo<I> typeFilterInfo, VGraphCache<V, I> graphCache, String subgraphName) {
+		if (!vertexTypeAllowedByFilter(vertex.getVertexTypeId(), diffFilter, typeFilterInfo, graphCache, subgraphName))
+			return false;
+		
+		return diffFilter.isVertexAllowed(subgraphName, vertex);
+	}
+	
+	//---
+	
+	protected boolean edgeAllowedByFilter(VEdge<V, I> edge, IGraphDiffFilter<V, I> diffFilter,
+			ElementTypeFilterInfo<I> typeFilterInfo, VGraphCache<V, I> graphCache, String subgraphName) {
+		if (!edgeTypeAllowedByFilter(edge.getEdgeTypeId(), diffFilter, typeFilterInfo, graphCache, subgraphName))
+			return false;
+		
+		return diffFilter.isEdgeAllowed(subgraphName, edge);
+	}
+
+	//---
+	
+	protected boolean elementAllowedByFilter(VElement<V, I> elm, IGraphDiffFilter<V, I> diffFilter,
+			ElementTypeFilterInfo<I> typeFilterInfo, VGraphCache<V, I> graphCache, String subgraphName) 
+					throws GraphMismatchException {
+		//2) Filter VertexTypes and corresponding Vertexes by name
+		//3) Filter EdgeTypes and corresponding Edges by name
+		//4) Filter Edges
+		//5) Filter Vertexes
+		
+		if (elm instanceof VVertexType)
+			return vertexTypeAllowedByFilter((VVertexType<V, I>)elm, diffFilter, typeFilterInfo, graphCache, subgraphName);
+		else if (elm instanceof VEdgeType)
+			return edgeTypeAllowedByFilter((VEdgeType<V, I>)elm, diffFilter, typeFilterInfo, graphCache, subgraphName);
+		else if (elm instanceof VVertex)
+			return vertexAllowedByFilter((VVertex<V, I>)elm, diffFilter, typeFilterInfo, graphCache, subgraphName);
+		else if (elm instanceof VEdge)
+			return edgeAllowedByFilter((VEdge<V, I>)elm, diffFilter, typeFilterInfo, graphCache, subgraphName);
+		else
+			throw new GraphMismatchException("Element should be of one of the following types: " + 
+					"VVertexType, VEdgeType, VVertex, VEdge");
+	}
+	
+	public VSubgraphDiff<V, I> getDiff(VGraphCache<V, I> graphCache, V subgraphVersionFrom, IGraphDiffFilter<V, I> diffFilter,
+			ElementTypeFilterInfo<I> typeFilterInfo) throws GraphMismatchException {
 		Optional<VSubgraphElementRecord<V, I>> diffSubgraphElementRecord = Optional.empty();
 		if (subgraphElementRecord.isPresent()) {
 			VSubgraphElementRecord<V, I> subgraphElementRec = subgraphElementRecord.get();
@@ -287,24 +413,27 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 				I linkId = link.getElementId();
 				I linkedElementId = link.getLinkElementId();
 				
-				Optional<VLinkUpdate<V, I>> linkUpdateOpt = Optional.empty();
-				Optional<V> linkedElementVersionUpdate = Optional.empty();
-				
-				if (vComparator.compare(link.getVersion(), subgraphVersionFrom) > 0) {
-					V version = link.getVersion();
-					Optional<String> key = link.getKey();
-					String content = link.getContent();
-					boolean isTombstone = link.isTombstone();
+				VElement<V, I> elm = graphCache.sharedElements.get(linkedElementId).getElement();
+				if (elementAllowedByFilter(elm, diffFilter, typeFilterInfo, graphCache, name)) {
+					Optional<VLinkUpdate<V, I>> linkUpdateOpt = Optional.empty();
+					Optional<V> linkedElementVersionUpdate = Optional.empty();
 					
-					VLinkUpdate<V, I> linkUpdate = new VLinkUpdate<V, I>(linkId, version, key, content, isTombstone);
-					linkUpdateOpt = Optional.of(linkUpdate);
+					if (vComparator.compare(link.getVersion(), subgraphVersionFrom) > 0) {
+						V version = link.getVersion();
+						Optional<String> key = link.getKey();
+						String content = link.getContent();
+						boolean isTombstone = link.isTombstone();
+						
+						VLinkUpdate<V, I> linkUpdate = new VLinkUpdate<V, I>(linkId, version, key, content, isTombstone);
+						linkUpdateOpt = Optional.of(linkUpdate);
+					}
+					
+					if (vComparator.compare(link.getLinkElementVersion(), subgraphVersionFrom) > 0)
+						linkedElementVersionUpdate = Optional.of(link.getLinkElementVersion());
+					
+					VLinkDiff<V, I> linkDiff = new VLinkDiff<>(linkId, linkedElementId, linkUpdateOpt, linkedElementVersionUpdate);
+					diffLinkUpdatesByElementIdMap.put(linkedElementId, linkDiff);
 				}
-				
-				if (vComparator.compare(link.getLinkElementVersion(), subgraphVersionFrom) > 0)
-					linkedElementVersionUpdate = Optional.of(link.getLinkElementVersion());
-				
-				VLinkDiff<V, I> linkDiff = new VLinkDiff<>(linkId, linkedElementId, linkUpdateOpt, linkedElementVersionUpdate);
-				diffLinkUpdatesByElementIdMap.put(linkedElementId, linkDiff);
 			}
 		}
 		
