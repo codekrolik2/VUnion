@@ -1,8 +1,6 @@
 package com.github.bamirov.vunion.graphcache;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -49,6 +47,9 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 	protected Map<I, Set<I>> vertexesByType = new HashMap<>();
 	protected Map<I, Set<I>> edgesByType = new HashMap<>();
 	
+	//TODO: implement
+	//protected Map<I, Set<I>> edgesByVertex = new HashMap<>();
+	
 	protected Optional<VSubgraphElementRecord<V, I>> subgraphElementRecord = Optional.empty();
 	
 	protected VComparator<V> vComparator = new VComparator<>();
@@ -56,26 +57,31 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 	//TODO: this method is probably not needed, since subgraphVersionTo is always max subgraphVersion
 	//TODO: make sure GraphDiffChecker check it
 	public V getSubgraphVersion() {
-		@SuppressWarnings("unchecked")
-		List<V> list = (List<V>)Arrays.asList(new Object[] {
-				subgraphVersionTo,
-				elementSyncVersion.isPresent() ? elementSyncVersion.get() : null,
-				subgraphElementRecord.isPresent() ? subgraphElementRecord.get().getSubgraphElementUpdateVersion() : null
-		});
-		return Collections.max(list);
+		V max = null;
+		
+		if (vComparator.compare(subgraphVersionTo, max) > 0)
+			max = subgraphVersionTo;
+		if (elementSyncVersion.isPresent())
+			if (vComparator.compare(elementSyncVersion.get(), max) > 0)
+				max = elementSyncVersion.get();
+		if (subgraphElementRecord.isPresent())
+			if (vComparator.compare(subgraphElementRecord.get().getSubgraphElementUpdateVersion(), max) > 0)
+				max = subgraphElementRecord.get().getSubgraphElementUpdateVersion();
+		
+		return max;
 	}
 	
 	protected void removeLinkInfo(VLink<V, I> cacheLink, VGraphCache<V, I> graphCache) {
 		subgraphTimeline.remove(cacheLink.getTimelineVersion());
-		subgraphLinksByElementId.remove(cacheLink.getElementId());
+		subgraphLinksByElementId.remove(cacheLink.getLinkedElementId());
 		
-		SharedElementRec<V, I> sharedElementRec = graphCache.sharedElements.get(cacheLink.getElementId());
+		SharedElementRec<V, I> sharedElementRec = graphCache.sharedElements.get(cacheLink.getLinkedElementId());
 		
 		VElement<V, I> linkedElement = sharedElementRec.getElement();
 		removeElementFromTypeIndex(linkedElement);
 		
 		//decrement reference count on shared elements
-		graphCache.decrementReferenceCount(cacheLink.getElementId());
+		graphCache.decrementReferenceCount(cacheLink.getLinkedElementId());
 	}
 	
 	protected void removeElementFromTypeIndex(VElement<V, I> linkedElement) {
@@ -95,9 +101,9 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 	protected void addLinkInfo(VLink<V, I> newCacheLink, VSubgraphDiff<V, I> diff, VGraphDiff<V, I> graphDiff, 
 			VGraphCache<V, I> graphCache) {
 		subgraphTimeline.put(newCacheLink.getTimelineVersion(), newCacheLink);
-		subgraphLinksByElementId.put(newCacheLink.getElementId(), newCacheLink);
+		subgraphLinksByElementId.put(newCacheLink.getLinkedElementId(), newCacheLink);
 		
-		VElement<V, I> linkedElement = graphDiff.getElement(newCacheLink.getElementId());
+		VElement<V, I> linkedElement = graphDiff.getElement(newCacheLink.getLinkedElementId());
 
 		//If element is VVertex or VEdge, add to TypeIndex
 		addElementToTypeIndex(linkedElement);
@@ -164,7 +170,7 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 			
 			List<VLink<V, I>> removedLinks = new ArrayList<VLink<V, I>>();
 			for (VLink<V, I> link : subgraphLinksByElementId.values())
-				if (!activeLinks.contains(link.getElementId()))
+				if (!activeLinks.contains(link.getLinkedElementId()))
 					removedLinks.add(link);
 			
 			for (VLink<V, I> link : removedLinks)
@@ -228,26 +234,24 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 				
 				if (linkDiff.getLinkedElementVersionUpdate().isPresent()) {
 					V linkElementVersion = linkDiff.getLinkedElementVersionUpdate().get();
-					oldCacheLink.setLinkElementVersion(linkElementVersion);
+					oldCacheLink.setLinkedElementVersion(linkElementVersion);
 					
 					//Check if VertexType/EdgeType was updated
-					SharedElementRec<V, I> sharedElementRec = graphCache.sharedElements.get(oldCacheLink.getElementId());
+					SharedElementRec<V, I> sharedElementRec = graphCache.sharedElements.get(oldCacheLink.getLinkedElementId());
 					VElement<V, I> oldElement = sharedElementRec.getElement();
 					
-					VElement<V, I> newElement = null;
-					if (graphDiff.getEdges().isPresent())
-						newElement = graphDiff.getEdges().get().get(oldCacheLink.getElementId());
-					
-					if ((newElement == null) && (graphDiff.getVertexes().isPresent()))
-						newElement = graphDiff.getVertexes().get().get(oldCacheLink.getElementId());
+					VElement<V, I> newElement = graphDiff.getElement(oldCacheLink.getLinkedElementId());
 					
 					//If element is VVertex or VEdge, check if updates are needed for TypeIndex
-					if (newElement != null) {
+					if ((newElement instanceof VVertex) || (newElement instanceof VEdge)) {
 						if (!newElement.getClass().equals(oldElement.getClass())) {
 							removeElementFromTypeIndex(oldElement);
 							addElementToTypeIndex(newElement);
 						}
 					}
+					
+					//updateElement
+					sharedElementRec.element = newElement;
 				}
 				
 				//Update timeline - add updated record to timeline
@@ -377,8 +381,11 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 					"VVertexType, VEdgeType, VVertex, VEdge");
 	}
 	
-	public VSubgraphDiff<V, I> getDiff(VGraphCache<V, I> graphCache, V subgraphVersionFrom, IGraphDiffFilter<V, I> diffFilter,
+	public Optional<VSubgraphDiff<V, I>> getDiff(VGraphCache<V, I> graphCache, V subgraphVersionFrom, Optional<IGraphDiffFilter<V, I>> diffFilter,
 			ElementTypeFilterInfo<I> typeFilterInfo) throws GraphMismatchException {
+		if (vComparator.compare(subgraphVersionFrom, subgraphVersionTo) >= 0)
+			return Optional.empty();
+		
 		Optional<VSubgraphElementRecord<V, I>> diffSubgraphElementRecord = Optional.empty();
 		if (subgraphElementRecord.isPresent()) {
 			VSubgraphElementRecord<V, I> subgraphElementRec = subgraphElementRecord.get();
@@ -411,10 +418,10 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 			Map<I, VLinkDiff<V, I>> diffLinkUpdatesByElementIdMap = new HashMap<>();
 			for (VLink<V, I> link : tailMap.values()) {
 				I linkId = link.getElementId();
-				I linkedElementId = link.getLinkElementId();
+				I linkedElementId = link.getLinkedElementId();
 				
 				VElement<V, I> elm = graphCache.sharedElements.get(linkedElementId).getElement();
-				if (elementAllowedByFilter(elm, diffFilter, typeFilterInfo, graphCache, name)) {
+				if (!diffFilter.isPresent() || elementAllowedByFilter(elm, diffFilter.get(), typeFilterInfo, graphCache, name)) {
 					Optional<VLinkUpdate<V, I>> linkUpdateOpt = Optional.empty();
 					Optional<V> linkedElementVersionUpdate = Optional.empty();
 					
@@ -428,17 +435,20 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 						linkUpdateOpt = Optional.of(linkUpdate);
 					}
 					
-					if (vComparator.compare(link.getLinkElementVersion(), subgraphVersionFrom) > 0)
-						linkedElementVersionUpdate = Optional.of(link.getLinkElementVersion());
+					if (vComparator.compare(link.getLinkedElementVersion(), subgraphVersionFrom) > 0)
+						linkedElementVersionUpdate = Optional.of(link.getLinkedElementVersion());
 					
 					VLinkDiff<V, I> linkDiff = new VLinkDiff<>(linkId, linkedElementId, linkUpdateOpt, linkedElementVersionUpdate);
 					diffLinkUpdatesByElementIdMap.put(linkedElementId, linkDiff);
 				}
 			}
+			
+			if (!diffLinkUpdatesByElementIdMap.isEmpty())
+				linkUpdatesByElementId = Optional.of(diffLinkUpdatesByElementIdMap);
 		}
 		
 		VSubgraphDiff<V, I> subgraphDiff = new VSubgraphDiff<V, I>(name, subgraphVersionTo, 
 				linkUpdatesByElementId, elementSync, diffSubgraphElementRecord);
-		return subgraphDiff;
+		return Optional.of(subgraphDiff);
 	}
 }

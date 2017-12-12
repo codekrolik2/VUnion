@@ -78,10 +78,6 @@ public class GraphSerializerTest {
 		String diffStr = graphJSONStrDiffCreator.createDiff6();
 		VGraphDiff<Long, Long> graphDiff = graphDiffCreator.createDiff6();
 		
-		System.out.println(diffStr);
-		System.out.println("-------------");
-		System.out.println(graphDiff.toString());
-		
 		compareDiff(diffStr, graphDiff);
 	}
 	

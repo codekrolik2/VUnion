@@ -502,7 +502,7 @@ c.3. I.e. untombstone types first, vertexes after, and then edges (it's also ok 
 							"key" : "linkKey5-1",
 							"version" : "18",
 							"content" : "<sample link content-1>",
-							"isTombstone" : true
+							"isTombstone" : false
 						}
 					}
 				]

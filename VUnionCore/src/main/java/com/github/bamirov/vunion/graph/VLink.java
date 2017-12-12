@@ -12,27 +12,27 @@ import lombok.ToString;
 @ToString(callSuper=true)
 @EqualsAndHashCode(callSuper=true)
 public class VLink<V extends Comparable<V>, I> extends VElement<V, I> {
-	protected final I linkElementId;
-	protected V linkElementVersion;
+	protected final I linkedElementId;
+	protected V linkedElementVersion;
 	//TODO: mb String subgraph?
 	//protected final I subgraphId;
 	protected boolean isTombstone;
 	
 	public VLink(I elementId, V version, Optional<String> key, String content, 
-			I linkElementId, V linkElementVersion, /*I subgraphId,*/ boolean isTombstone) {
+			I linkedElementId, V linkedElementVersion, /*I subgraphId,*/ boolean isTombstone) {
 		super(elementId, version, key, content);
-		this.linkElementId = linkElementId;
-		this.linkElementVersion = linkElementVersion;
+		this.linkedElementId = linkedElementId;
+		this.linkedElementVersion = linkedElementVersion;
 		//this.subgraphId = subgraphId;
 		this.isTombstone = isTombstone;
 	}
 	
 	public V getTimelineVersion() {
-		if (linkElementVersion == null)
+		if (linkedElementVersion == null)
 			return version;
 		if (version == null)
-			return linkElementVersion;
+			return linkedElementVersion;
 		
-		return version.compareTo(linkElementVersion) > 0 ? version : linkElementVersion;
+		return version.compareTo(linkedElementVersion) > 0 ? version : linkedElementVersion;
 	}
 }

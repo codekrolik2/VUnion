@@ -22,6 +22,10 @@ import com.github.bamirov.vunion.graphstream.VSubgraphSyncRecord;
 import com.github.bamirov.vunion.version.VGraphVersion;
 
 public class GraphDiffCreator {
+	public static final String graphName = "graph0";
+	public static final String subgraph0Name = "subgraph0";
+	public static final String subgraph1Name = "subgraph1";
+	
 	private VLinkDiff<Long, Long> createLink(Long linkId, Boolean isTombstone, Long version,
 			String key, String content, Long linkedElementId, Long linkedElementVersion) {
 
@@ -138,10 +142,10 @@ public class GraphDiffCreator {
 		linkDiffs.put(link1.getLinkedElementId(), link1);
 		linkDiffs.put(link2.getLinkedElementId(), link2);
 		linkDiffs.put(link3.getLinkedElementId(), link3);
-		 
+		
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph0")
+				.name(subgraph0Name)
 				.subgraphVersionTo(6L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs))
 				
@@ -149,7 +153,7 @@ public class GraphDiffCreator {
 		subgraphs.put(subgraph.getName(), subgraph);
 		
 		VGraphDiff<Long, Long> diff1 = VGraphDiff.<Long, Long>builder()
-				.graphName("graph0")
+				.graphName(graphName)
 				.vertexTypes(Optional.of(vertexTypes))
 				.vertexes(Optional.of(vertexes))
 				.subgraphs(Optional.of(subgraphs))
@@ -162,13 +166,13 @@ public class GraphDiffCreator {
 	//2. New edge type, edge +links to subgraph0
 	public VGraphDiff<Long, Long> createDiff2() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
-			.subgraphVersion("subgraph0", 6L)
+			.subgraphVersion(subgraph0Name, 6L)
 			.build();
 		
 		Map<Long, VEdgeType<Long, Long>> edgeTypes = new HashMap<>();
 		VEdgeType<Long, Long> edgeType = createEdgeType(7L, 7L, "edgeTypeKey1", "<sample edge type>", "edgeType0");
 		edgeTypes.put(edgeType.getElementId(), edgeType);
-	
+		
 		Map<Long, VEdge<Long, Long>> edges = new HashMap<>();
 		VEdge<Long, Long> edge = createEdge(8L, 8L, "edgeKey1", "<sample edge content>", 7L, 2L, 5L, false);
 		edges.put(edge.getElementId(), edge);
@@ -181,7 +185,7 @@ public class GraphDiffCreator {
 		
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph0")
+				.name(subgraph0Name)
 				.subgraphVersionTo(10L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs))
 				
@@ -190,7 +194,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff2 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.edgeTypes(Optional.of(edgeTypes))
 				.edges(Optional.of(edges))
 				.subgraphs(Optional.of(subgraphs))
@@ -203,7 +207,7 @@ public class GraphDiffCreator {
 	//3. New subgraph, links for existing elements (vertexes, edges, vertex types, edge types) - to subgraph1
 	public VGraphDiff<Long, Long> createDiff3() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
-				.subgraphVersion("subgraph0", 10L)
+				.subgraphVersion(subgraph0Name, 10L)
 				.build();
 		
 		Map<Long, VVertexType<Long, Long>> vertexTypes = new HashMap<>();
@@ -239,7 +243,7 @@ public class GraphDiffCreator {
 		
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph1 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph1")
+				.name(subgraph1Name)
 				.subgraphVersionTo(15L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs1))
 				
@@ -248,7 +252,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff3 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.vertexTypes(Optional.of(vertexTypes))
 				.vertexes(Optional.of(vertexes))
 				.edgeTypes(Optional.of(edgeTypes))
@@ -263,8 +267,8 @@ public class GraphDiffCreator {
 	//4. Vertex updated
 	public VGraphDiff<Long, Long> createDiff4() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
-				.subgraphVersion("subgraph0", 10L)
-				.subgraphVersion("subgraph1", 15L)
+				.subgraphVersion(subgraph0Name, 10L)
+				.subgraphVersion(subgraph1Name, 15L)
 				.build();
 		
 		Map<Long, VVertex<Long, Long>> vertexes = new HashMap<>();
@@ -281,13 +285,13 @@ public class GraphDiffCreator {
 		
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph0")
+				.name(subgraph0Name)
 				.subgraphVersionTo(16L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs0))
 				
 				.build();
 		VSubgraphDiff<Long, Long> subgraph1 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph1")
+				.name(subgraph1Name)
 				.subgraphVersionTo(16L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs1))
 				
@@ -297,7 +301,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff4 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.vertexes(Optional.of(vertexes))
 				.subgraphs(Optional.of(subgraphs))
 				
@@ -309,8 +313,8 @@ public class GraphDiffCreator {
 	//5. Edge updated
 	public VGraphDiff<Long, Long> createDiff5() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
-				.subgraphVersion("subgraph0", 16L)
-				.subgraphVersion("subgraph1", 16L)
+				.subgraphVersion(subgraph0Name, 16L)
+				.subgraphVersion(subgraph1Name, 16L)
 				.build();
 		
 		Map<Long, VEdge<Long, Long>> edges = new HashMap<>();
@@ -327,13 +331,13 @@ public class GraphDiffCreator {
 	
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph0")
+				.name(subgraph0Name)
 				.subgraphVersionTo(17L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs0))
 				
 				.build();
 		VSubgraphDiff<Long, Long> subgraph1 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph1")
+				.name(subgraph1Name)
 				.subgraphVersionTo(17L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs1))
 				
@@ -343,7 +347,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff5 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.edges(Optional.of(edges))
 				.subgraphs(Optional.of(subgraphs))
 				
@@ -355,17 +359,17 @@ public class GraphDiffCreator {
 	//6. Link updated
 	public VGraphDiff<Long, Long> createDiff6() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
-				.subgraphVersion("subgraph0", 17L)
-				.subgraphVersion("subgraph1", 17L)
+				.subgraphVersion(subgraph0Name, 17L)
+				.subgraphVersion(subgraph1Name, 17L)
 				.build();
 		
 		Map<Long, VLinkDiff<Long, Long>> linkDiffs0 = new HashMap<>();
-		VLinkDiff<Long, Long> link0 = createLink(10L, 8L, true, 18L, "linkKey5-1", "<sample link content-1>");
+		VLinkDiff<Long, Long> link0 = createLink(10L, 8L, false, 18L, "linkKey5-1", "<sample link content-1>");
 		linkDiffs0.put(link0.getLinkedElementId(), link0);
 		
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph0")
+				.name(subgraph0Name)
 				.subgraphVersionTo(18L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs0))
 				
@@ -374,7 +378,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff6 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.subgraphs(Optional.of(subgraphs))
 				
 				.build();
@@ -385,8 +389,8 @@ public class GraphDiffCreator {
 	//7.1. GraphElement created
 	public VGraphDiff<Long, Long> createDiff71() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
-				.subgraphVersion("subgraph0", 18L)
-				.subgraphVersion("subgraph1", 17L)
+				.subgraphVersion(subgraph0Name, 18L)
+				.subgraphVersion(subgraph1Name, 17L)
 				.build();
 		
 		VGraphElementRecord<Long, Long> graphElementRecord = VGraphElementRecord.<Long, Long>builder()
@@ -403,7 +407,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff71 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.graphElementRecord(Optional.of(graphElementRecord))
 				
 				.build();
@@ -415,8 +419,8 @@ public class GraphDiffCreator {
 	public VGraphDiff<Long, Long> createDiff72() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
 				.graphVersion(Optional.of(19L))
-				.subgraphVersion("subgraph0", 18L)
-				.subgraphVersion("subgraph1", 17L)
+				.subgraphVersion(subgraph0Name, 18L)
+				.subgraphVersion(subgraph1Name, 17L)
 				.build();
 		
 		VGraphElementRecord<Long, Long> graphElementRecord = VGraphElementRecord.<Long, Long>builder()
@@ -433,7 +437,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff72 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.graphElementRecord(Optional.of(graphElementRecord))
 				
 				.build();
@@ -445,8 +449,8 @@ public class GraphDiffCreator {
 	public VGraphDiff<Long, Long> createDiff81() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
 				.graphVersion(Optional.of(20L))
-				.subgraphVersion("subgraph0", 18L)
-				.subgraphVersion("subgraph1", 17L)
+				.subgraphVersion(subgraph0Name, 18L)
+				.subgraphVersion(subgraph1Name, 17L)
 				.build();
 		
 		VSubgraphElementRecord<Long, Long> subgraphElementRecord = VSubgraphElementRecord.<Long, Long>builder()
@@ -463,7 +467,7 @@ public class GraphDiffCreator {
 		
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph0")
+				.name(subgraph0Name)
 				.subgraphVersionTo(21L)
 				.subgraphElementRecord(Optional.of(subgraphElementRecord))
 				
@@ -472,7 +476,7 @@ public class GraphDiffCreator {
 
 		VGraphDiff<Long, Long> diff81 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.subgraphs(Optional.of(subgraphs))
 				
 				.build();
@@ -484,8 +488,8 @@ public class GraphDiffCreator {
 	public VGraphDiff<Long, Long> createDiff82() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
 				.graphVersion(Optional.of(20L))
-				.subgraphVersion("subgraph0", 21L)
-				.subgraphVersion("subgraph1", 17L)
+				.subgraphVersion(subgraph0Name, 21L)
+				.subgraphVersion(subgraph1Name, 17L)
 				.build();
 		
 		VSubgraphElementRecord<Long, Long> subgraphElementRecord = VSubgraphElementRecord.<Long, Long>builder()
@@ -502,7 +506,7 @@ public class GraphDiffCreator {
 		
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph0")
+				.name(subgraph0Name)
 				.subgraphVersionTo(22L)
 				.subgraphElementRecord(Optional.of(subgraphElementRecord))
 				
@@ -511,7 +515,7 @@ public class GraphDiffCreator {
 
 		VGraphDiff<Long, Long> diff82 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.subgraphs(Optional.of(subgraphs))
 				
 				.build();
@@ -523,8 +527,8 @@ public class GraphDiffCreator {
 	public VGraphDiff<Long, Long> createDiff9() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
 				.graphVersion(Optional.of(20L))
-				.subgraphVersion("subgraph0", 22L)
-				.subgraphVersion("subgraph1", 17L)
+				.subgraphVersion(subgraph0Name, 22L)
+				.subgraphVersion(subgraph1Name, 17L)
 				.build();
 		
 		Map<Long, VVertexType<Long, Long>> vertexTypes = new HashMap<>();
@@ -541,13 +545,13 @@ public class GraphDiffCreator {
 		
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph0")
+				.name(subgraph0Name)
 				.subgraphVersionTo(23L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs0))
 				
 				.build();
 		VSubgraphDiff<Long, Long> subgraph1 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph1")
+				.name(subgraph1Name)
 				.subgraphVersionTo(23L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs1))
 				
@@ -557,7 +561,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff9 = VGraphDiff.<Long, Long>builder()
 			.from(from)
-			.graphName("graph0")
+			.graphName(graphName)
 			.vertexTypes(Optional.of(vertexTypes))
 			.subgraphs(Optional.of(subgraphs))
 			
@@ -570,8 +574,8 @@ public class GraphDiffCreator {
 	public VGraphDiff<Long, Long> createDiff10() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
 				.graphVersion(Optional.of(20L))
-				.subgraphVersion("subgraph0", 23L)
-				.subgraphVersion("subgraph1", 23L)
+				.subgraphVersion(subgraph0Name, 23L)
+				.subgraphVersion(subgraph1Name, 23L)
 				.build();
 
 		Map<Long, VEdgeType<Long, Long>> edgeTypes = new HashMap<>();
@@ -588,13 +592,13 @@ public class GraphDiffCreator {
 		
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph0")
+				.name(subgraph0Name)
 				.subgraphVersionTo(24L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs0))
 				
 				.build();
 		VSubgraphDiff<Long, Long> subgraph1 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph1")
+				.name(subgraph1Name)
 				.subgraphVersionTo(24L)
 				.linkUpdatesByElementId(Optional.of(linkDiffs1))
 				
@@ -604,7 +608,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff10 = VGraphDiff.<Long, Long>builder()
 			.from(from)
-			.graphName("graph0")
+			.graphName(graphName)
 			.edgeTypes(Optional.of(edgeTypes))
 			.subgraphs(Optional.of(subgraphs))
 			
@@ -618,21 +622,21 @@ public class GraphDiffCreator {
 		//remove link id 15 / edge id 8
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
 				.graphVersion(Optional.of(20L))
-				.subgraphVersion("subgraph0", 24L)
-				.subgraphVersion("subgraph1", 24L)
+				.subgraphVersion(subgraph0Name, 24L)
+				.subgraphVersion(subgraph1Name, 24L)
 				.build();
 		
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph1")
+				.name(subgraph1Name)
 				.subgraphVersionTo(25L)
 				.elementSync(Optional.of(
 							VElementSyncRecord.<Long, Long>builder()
 							.elementSyncVersion(25L)
-							.elementId(11L)
-							.elementId(12L)
-							.elementId(13L)
-							.elementId(14L)
+							.elementId(1L)
+							.elementId(2L)
+							.elementId(5L)
+							.elementId(7L)
 							
 							.build()
 						))
@@ -642,7 +646,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff11 = VGraphDiff.<Long, Long>builder()
 			.from(from)
-			.graphName("graph0")
+			.graphName(graphName)
 			.subgraphs(Optional.of(subgraphs))
 			
 			.build();
@@ -654,17 +658,17 @@ public class GraphDiffCreator {
 	public VGraphDiff<Long, Long> createDiff13() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
 				.graphVersion(Optional.of(20L))
-				.subgraphVersion("subgraph0", 24L)
-				.subgraphVersion("subgraph1", 25L)
+				.subgraphVersion(subgraph0Name, 24L)
+				.subgraphVersion(subgraph1Name, 25L)
 				.build();
 		
 		VGraphDiff<Long, Long> diff13 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.subgraphSync(Optional.of(
 							VSubgraphSyncRecord.<Long>builder()
 							.subgraphSyncVersion(26L)
-							.subgraphName("subgraph0")
+							.subgraphName(subgraph0Name)
 							
 							.build()
 						))
@@ -678,7 +682,7 @@ public class GraphDiffCreator {
 	public VGraphDiff<Long, Long> createDiff14() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
 				.graphVersion(Optional.of(26L))
-				.subgraphVersion("subgraph0", 24L)
+				.subgraphVersion(subgraph0Name, 24L)
 				.build();
 		
 		VGraphElementRecord<Long, Long> graphElementRecord = VGraphElementRecord.<Long, Long>builder()
@@ -687,7 +691,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff14 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.graphElementRecord(Optional.of(graphElementRecord))
 				
 				.build();
@@ -699,7 +703,7 @@ public class GraphDiffCreator {
 	public VGraphDiff<Long, Long> createDiff15() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
 				.graphVersion(Optional.of(27L))
-				.subgraphVersion("subgraph0", 24L)
+				.subgraphVersion(subgraph0Name, 24L)
 				.build();
 		
 		VSubgraphElementRecord<Long, Long> subgraphElementRecord = VSubgraphElementRecord.<Long, Long>builder()
@@ -708,7 +712,7 @@ public class GraphDiffCreator {
 		
 		Map<String, VSubgraphDiff<Long, Long>> subgraphs = new HashMap<>();
 		VSubgraphDiff<Long, Long> subgraph0 = VSubgraphDiff.<Long, Long>builder()
-				.name("subgraph0")
+				.name(subgraph0Name)
 				.subgraphVersionTo(28L)
 				.subgraphElementRecord(Optional.of(subgraphElementRecord))
 				
@@ -717,7 +721,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff15 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.subgraphs(Optional.of(subgraphs))
 				
 				.build();
@@ -729,7 +733,7 @@ public class GraphDiffCreator {
 	public VGraphDiff<Long, Long> createDiff161() {
 		VGraphVersion<Long> from = VGraphVersion.<Long>builder()
 				.graphVersion(Optional.of(27L))
-				.subgraphVersion("subgraph0", 28L)
+				.subgraphVersion(subgraph0Name, 28L)
 				.build();
 		
 		VGraphDestroyedRecord<Long> destroyedRecord = VGraphDestroyedRecord.<Long>builder()
@@ -739,7 +743,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff161 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.destroyedRecord(Optional.of(destroyedRecord))
 				
 				.build();
@@ -760,7 +764,7 @@ public class GraphDiffCreator {
 		
 		VGraphDiff<Long, Long> diff162 = VGraphDiff.<Long, Long>builder()
 				.from(from)
-				.graphName("graph0")
+				.graphName(graphName)
 				.destroyedRecord(Optional.of(destroyedRecord))
 				
 				.build();

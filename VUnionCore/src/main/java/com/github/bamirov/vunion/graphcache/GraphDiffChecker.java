@@ -25,8 +25,9 @@ import com.github.bamirov.vunion.graphstream.VSubgraphElementRecord;
 import com.github.bamirov.vunion.graphstream.VSubgraphSyncRecord;
 import com.github.bamirov.vunion.version.VGraphVersion;
 
-//TODO: use VComparator for code clarity
 public class GraphDiffChecker<V extends Comparable<V>, I> {
+	protected VComparator<V> vComparator = new VComparator<>();
+	
 	protected V getGraphMaxVersion(VGraphCache<V, I> cache) {
 		V graphVersion = cache.getGraphUpdateVersion();
 		
@@ -34,7 +35,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 			if (graphVersion == null)
 				graphVersion = ent.getValue().getSubgraphVersion();
 			else
-				graphVersion = (graphVersion.compareTo(ent.getValue().getSubgraphVersion()) >= 0) 
+				graphVersion = (vComparator.compare(graphVersion, ent.getValue().getSubgraphVersion()) >= 0) 
 						? graphVersion 
 						: ent.getValue().getSubgraphVersion();
 		
@@ -47,8 +48,8 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 		builder.append(str);
 	}
 	
-	protected boolean elementExists(I elementId, VGraphDiff<V, I> diff, VGraphCache<V, I> graphCache) {
-		return ((diff.getElement(elementId) != null) || (graphCache.sharedElements.containsKey(elementId)));
+	protected boolean elementExists(I elementId, VGraphDiff<V, I> diff, Map<I, SharedElementRec<V, I>> cacheSharedElements) {
+		return ((diff.getElement(elementId) != null) || (cacheSharedElements.containsKey(elementId)));
 	}
 	
 	protected boolean isElementDeleted(I elementId, VSubgraphDiff<V, I> subgraphDiff, VSubgraphCache<V, I> subgraphCache) throws GraphMismatchException {
@@ -144,11 +145,9 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 	
 	protected void findElementInSubgraphDiffOrCache(I elementId, VSubgraphDiff<V, I> subgraphDiff, VGraphDiff<V, I> graphDiff,
 			VSubgraphCache<V, I> subgraphCache, String elementLogName,
-			@SuppressWarnings("rawtypes") Class elementClass, VGraphCache<V, I> cache, boolean ignoreTombstoneStatus) throws GraphMismatchException {
+			@SuppressWarnings("rawtypes") Class elementClass, Map<I, SharedElementRec<V, I>> cacheSharedElements, boolean ignoreTombstoneStatus) throws GraphMismatchException {
 		//Get Vertex type link from subgraph diff
 		VLinkDiff<V, I> diffElementLink = subgraphDiff.getLinkUpdatesByElementId().get().get(elementId);
-		
-		Map<I, SharedElementRec<V, I>> cacheSharedElements = cache.getSharedElements();
 		
 		boolean checkCacheElement = false;
 		boolean checkCacheElementTombstoned = true;
@@ -304,8 +303,31 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 			}
 	}
 	
-	protected void sanityCheckGraphDiff(VGraphCache<V, I> cache, VGraphDiff<V, I> graphDiff, boolean relaxedEdgeCheck) throws GraphVersionMismatchException, GraphMismatchException {
-		String graphName = cache.getGraphName();
+	protected void sanityCheckGraphDiff(VGraphCache<V, I> cachePrm, VGraphDiff<V, I> graphDiff, boolean relaxedEdgeCheck) throws GraphVersionMismatchException, GraphMismatchException {
+		String graphName = cachePrm.getGraphName();
+		
+		VGraphVersion<V> cacheVersion = cachePrm.getGraphVersion();
+		
+		V maxGraphVersion = getGraphMaxVersion(cachePrm);
+		V cacheGraphVersion = cachePrm.getGraphUpdateVersion();
+		Optional<V> cacheSubgraphSyncVersionOpt = cachePrm.getSubgraphSyncVersion();
+		
+		Optional<VGraphElementRecord<V, I>> cacheGraphElementOpt = cachePrm.getGraphElementRecord();
+		Map<I, SharedElementRec<V, I>> cacheSharedElements = cachePrm.getSharedElements();
+		Map<String, VSubgraphCache<V, I>> cacheSubgraphs = cachePrm.getSubgraphs();
+		
+		//2. Update destroyed status
+		if (graphDiff.getDestroyedRecord().isPresent()) {
+			cacheGraphElementOpt = Optional.empty();
+			cacheSharedElements = new HashMap<>();
+			cacheSubgraphs = new HashMap<>();
+			cacheSubgraphSyncVersionOpt = Optional.empty();
+			
+			if (!graphDiff.getDestroyedRecord().get().isDestroyed())
+				cacheGraphVersion = null;
+		}
+		
+		
 		//1. Graph name must match
 		if (!graphName.equals(graphDiff.getGraphName()))
 			throw new GraphMismatchException(
@@ -313,7 +335,6 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 							graphDiff.getGraphName(), graphName));
 		
 		//2. Cache version must equal to Diff version from
-		VGraphVersion<V> cacheVersion = cache.getGraphVersion();
 		if (!graphDiff.getFrom().equals(cacheVersion))
 			throw new GraphVersionMismatchException(cacheVersion, 
 				String.format("Cache/diff version mismatch: [diff from: [%s]; cache: [%s]] ", 
@@ -323,8 +344,6 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 		//3. If graph is destroyed, no data should be present in the Diff other than Destroyed record
 		//Destroyed/Recover version should be > any cache version
 		if (graphDiff.getDestroyedRecord().isPresent()) {
-			V maxGraphVersion = getGraphMaxVersion(cache);
-			
 			if (graphDiff.getDestroyedRecord().get().isDestroyed()) {
 				StringBuilder builder = new StringBuilder();
 				
@@ -347,7 +366,8 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 			//NB: two [isDestroyed:true] diffs can be received in a row, in case Recovery event in the middle was missed
 			//NB: two [isDestroyed:false] diffs can be received in a row, in case Destroyed event in the middle was missed
 			
-			if ((maxGraphVersion != null) && (graphDiff.getDestroyedRecord().get().getDestroyRecoverVersion().compareTo(maxGraphVersion) <= 0)) {
+			if ((maxGraphVersion != null) && 
+					(vComparator.compare(graphDiff.getDestroyedRecord().get().getDestroyRecoverVersion(), maxGraphVersion) <= 0)) {
 				throw new GraphMismatchException(
 						String.format("DestroyedRecord inconsistent: [DestroyRecoverVersion: [%s] <= cache GraphUpdateVersion: [%s]]",
 								graphDiff.getDestroyedRecord().get().getDestroyRecoverVersion().toString(), 
@@ -372,9 +392,8 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 				}
 			}
 			
-			Optional<VGraphElementRecord<V, I>> cacheGraphElementOpt = cache.getGraphElementRecord();
 			if (cacheGraphElementOpt.isPresent()) {
-				if (ger.getGraphElementUpdateVersion().compareTo(cacheGraphElementOpt.get().getGraphElementUpdateVersion()) <= 0) {
+				if (vComparator.compare(ger.getGraphElementUpdateVersion(), cacheGraphElementOpt.get().getGraphElementUpdateVersion()) <= 0) {
 					throw new GraphMismatchException(
 						String.format("GraphElementRecord inconsistent: [GraphElementUpdateVersion: [%s] <= cache GraphElement.Version: [%s]]",
 								ger.getGraphElementUpdateVersion().toString(),
@@ -382,9 +401,9 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 					);
 				}
 			}
-
-			V cacheGraphVersion = cache.getGraphUpdateVersion();
-			if ((cacheGraphVersion != null) && (ger.getGraphElement().get().getVersion().compareTo(cacheGraphVersion) <= 0)) {
+			
+			if ((cacheGraphVersion != null) && 
+					(vComparator.compare(ger.getGraphElementUpdateVersion(), cacheGraphVersion) <= 0)) {
 				throw new GraphMismatchException(
 					String.format("GraphElementRecord inconsistent: [GraphElementUpdateVersion: [%s] <= cache MaxGraphVersion: [%s]]",
 							ger.getGraphElement().get().getVersion().toString(),
@@ -392,17 +411,15 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 				);
 			}
 		}
-
-		Map<String, VSubgraphCache<V, I>> cacheSubgraphs = cache.getSubgraphs();
 		
 		//5. Diff SubgraphSyncRecord version should be > Cache subgraphSyncVersion
 		//	All active subgraph names should exist either in Cache or in Diff
 		//	All subgraphs that are removed from cache should not exist in diff
 		if (graphDiff.getSubgraphSync().isPresent()) {
 			VSubgraphSyncRecord<V> subgraphSyncRecord = graphDiff.getSubgraphSync().get();
-			Optional<V> cacheSubgraphSyncVersionOpt = cache.getSubgraphSyncVersion();
 			
-			if ((cacheSubgraphSyncVersionOpt.isPresent()) && (subgraphSyncRecord.getSubgraphSyncVersion().compareTo(cacheSubgraphSyncVersionOpt.get()) <= 0)) {
+			if ((cacheSubgraphSyncVersionOpt.isPresent()) && 
+					(vComparator.compare(subgraphSyncRecord.getSubgraphSyncVersion(), cacheSubgraphSyncVersionOpt.get()) <= 0)) {
 				throw new GraphMismatchException(
 					String.format("VSubgraphSyncRecord inconsistent: [GraphElementUpdateVersion: [%s] <= cache SubgraphSyncVersion: [%s]]",
 							subgraphSyncRecord.getSubgraphSyncVersion().toString(), 
@@ -441,8 +458,12 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 			
 			for (VSubgraphDiff<V, I> subgraphDiff : graphDiff.getSubgraphs().get().values()) {
 				VSubgraphCache<V, I> subgraphCache = cacheSubgraphs.get(subgraphDiff.getName());
+				if (subgraphCache == null) {
+					subgraphCache = new VSubgraphCache<V, I>(subgraphDiff.getName());
+					cacheSubgraphs.put(subgraphDiff.getName(), subgraphCache);
+				}
 				
-				checkSubgraph(subgraphDiff, graphDiff, subgraphCache, cache, referencedElementsSet, relaxedEdgeCheck);
+				checkSubgraph(subgraphDiff, graphDiff, subgraphCache, cacheSharedElements, referencedElementsSet, relaxedEdgeCheck);
 			}
 			
 			//Check that all diff elements were referenced at least once
@@ -451,12 +472,11 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 	}
 	
 	public void checkSubgraph(VSubgraphDiff<V, I> subgraphDiff, VGraphDiff<V, I> graphDiff, VSubgraphCache<V, I> subgraphCache, 
-			VGraphCache<V, I> cache, Set<I> referencedElementsSet, boolean relaxedEdgeCheck) throws GraphMismatchException {
-		Map<I, SharedElementRec<V, I>> cacheSharedElements = cache.getSharedElements();
-		
+			Map<I, SharedElementRec<V, I>> cacheSharedElements, Set<I> referencedElementsSet, boolean relaxedEdgeCheck) throws GraphMismatchException {
 		//0. Fill Diff Vertexes by Type, Diff Edges by Type
 		Map<I, Set<I>> diffVertexesByType = new HashMap<>();
 		Map<I, Set<I>> diffEdgesByType = new HashMap<>();
+		Map<I, Set<I>> diffEdgesByVertex = new HashMap<>();
 		
 		if (subgraphDiff.getLinkUpdatesByElementId().isPresent()) {
 			for (VLinkDiff<V, I> linkDiff : subgraphDiff.getLinkUpdatesByElementId().get().values()) {
@@ -482,8 +502,21 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 								typeEdges = new HashSet<>();
 								diffEdgesByType.put(edge.getEdgeTypeId(), typeEdges);
 							}
-							
 							typeEdges.add(edge.getElementId());
+							
+							Set<I> fromVertexEdges = diffEdgesByVertex.get(edge.getVertexFromId());
+							if (fromVertexEdges == null) {
+								fromVertexEdges = new HashSet<>();
+								diffEdgesByVertex.put(edge.getVertexFromId(), fromVertexEdges);
+							}
+							fromVertexEdges.add(edge.getElementId());
+							
+							Set<I> toVertexEdges = diffEdgesByVertex.get(edge.getVertexToId());
+							if (toVertexEdges == null) {
+								toVertexEdges = new HashSet<>();
+								diffEdgesByVertex.put(edge.getVertexToId(), toVertexEdges);
+							}
+							toVertexEdges.add(edge.getElementId());
 						}
 					}
 				}
@@ -492,7 +525,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 		
 		//1. Diff Subgraph version To should be > corresponding Cache Subgraph version 
 		if (subgraphCache != null) {
-			if (subgraphDiff.getSubgraphVersionTo().compareTo(subgraphCache.getSubgraphVersion()) <= 0) {
+			if (vComparator.compare(subgraphDiff.getSubgraphVersionTo(), subgraphCache.getSubgraphVersion()) <= 0) {
 				throw new GraphMismatchException(
 					String.format("Subgraph updates inconsistent: [Subgraph [%s]: SubgraphVersion: [%s] <= cache SubgraphVersion: [%s]]",
 							subgraphDiff.getName(),
@@ -521,7 +554,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 			
 			if (subgraphCache != null) {
 				if (subgraphCache.getSubgraphElementRecord().isPresent()) {
-					if (subgraphElementRecord.getSubgraphElementUpdateVersion().compareTo(
+					if (vComparator.compare(subgraphElementRecord.getSubgraphElementUpdateVersion(),
 							subgraphCache.getSubgraphElementRecord().get().getSubgraphElementUpdateVersion()) <= 0) {
 						throw new GraphMismatchException(
 							String.format("SubgraphElementRecord inconsistent: [Subgraph [%s]: SubgraphElementUpdateVersion: [%s] <= cache SubgraphElement.Version: [%s]]",
@@ -532,7 +565,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 					}
 				}
 				
-				if (subgraphElementRecord.getSubgraphElementUpdateVersion().compareTo(subgraphCache.getSubgraphVersion()) <= 0) {
+				if (vComparator.compare(subgraphElementRecord.getSubgraphElementUpdateVersion(), subgraphCache.getSubgraphVersion()) <= 0) {
 					throw new GraphMismatchException(
 						String.format("SubgraphElementRecord inconsistent: [SubgraphElementUpdateVersion: [%s] <= cache SubgraphVersion: [%s]]",
 								subgraphElementRecord.getSubgraphElementUpdateVersion().toString(),
@@ -666,40 +699,28 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 													diffVertexId.toString())
 											);
 								}
-						} else if (elm instanceof VEdge) {
+						} else if (elm instanceof VVertex) {
 							//3.3.4. Edge tombstone checks
-							//Both VertexFrom and VertexTo should be tombstoned (diff or cache)
-							VEdge<V, I> edge = (VEdge<V, I>)elm;
+							VVertex<V, I> vertex = (VVertex<V, I>)elm;
 							
-							I vertexFromId = edge.getVertexFromId();
-							I vertexToId = edge.getVertexToId();
+							Set<I> edgesForVertex = diffEdgesByVertex.get(vertex.getElementId());
 							
-							//For relaxedEdgeCheck - do not check vertex if it doesn't exist
-							if ((!relaxedEdgeCheck) || (elementExists(vertexFromId, graphDiff, cache)))
-							if (!isElementTombstonedOrDeleted(vertexFromId, subgraphDiff, subgraphCache))
-								throw new GraphMismatchException(
-										String.format("LinkUpdates error: Edge can't be tombstoned if it's vertexFrom is not tombstoned. Subgraph [%s] edgeId [%s] edge linkId [%s] vertexFromId [%s]",
-												subgraphDiff.getName(),
-												linkUpdate.getLinkedElementId().toString(),
-												linkUpdate.getLinkId().toString(),
-												vertexFromId.toString())
-										);
-							
-							//For relaxedEdgeCheck - do not check vertex if it doesn't exist
-							if ((!relaxedEdgeCheck) || (elementExists(vertexToId, graphDiff, cache)))
-							if (!isElementTombstonedOrDeleted(vertexToId, subgraphDiff, subgraphCache))
-								throw new GraphMismatchException(
-										String.format("LinkUpdates error: Edge can't be tombstoned if it's vertexTo is not tombstoned. Subgraph [%s] edgeId [%s] edge linkId [%s] vertexToId [%s]",
-												subgraphDiff.getName(),
-												linkUpdate.getLinkedElementId().toString(),
-												linkUpdate.getLinkId().toString(),
-												vertexToId.toString())
-										);
+							for (I edgeId : edgesForVertex) {
+								//All connected edges should be tombstoned (diff or cache)
+								if (!isElementTombstonedOrDeleted(edgeId, subgraphDiff, subgraphCache))
+									throw new GraphMismatchException(
+											String.format("LinkUpdates error: Vertex can't be tombstoned if it's edges are not tombstoned. Subgraph [%s] vertex linkId [%s] vertexId [%s] edgeId [%s]",
+													subgraphDiff.getName(),
+													linkUpdate.getLinkedElementId().toString(),
+													linkUpdate.getLinkId().toString(),
+													edgeId.toString())
+											);
+							}
 						}
 					}
 					
 					//3.4. Check link version to be > cache Subgraph version
-					if (linkUpdate.getLinkUpdate().get().getVersion().compareTo(subgraphCache.getSubgraphVersion()) <= 0) {
+					if (vComparator.compare(linkUpdate.getLinkUpdate().get().getVersion(), subgraphCache.getSubgraphVersion()) <= 0) {
 						throw new GraphMismatchException(
 								String.format("LinkUpdates error: [LinkUpdate id [%s] version [%s] <= cache cache SubgraphVersion: [%s]]",
 										linkUpdate.getLinkUpdate().get().getElementId().toString(),
@@ -770,13 +791,17 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 						);
 					}
 					
-					//3.8. if element exists in cache, cache version should be < diff version
+					//3.8. if element exists in cache, cache version should be <= diff version
+					//Version can be equal if an existing element is being attached to a subgraph
+					//TODO: redundant attachment checks
 					if (sharedElement != null) {
-						if (sharedElement.element.getVersion().compareTo(linkedElmVersion) >= 0) {
+						if (vComparator.compare(sharedElement.element.getVersion(), linkedElmVersion) > 0) {
 							throw new GraphMismatchException(
-									String.format("LinkUpdates error: Updated element's cache version [%s] >= updated element version [%s]",
+									String.format("LinkUpdates error: Updated element's cache version [%s] >= updated element version [%s]. LinkId: [%s] ElementId: [%s]",
+											sharedElement.element.getVersion(),
+											linkedElmVersion,
 											linkId.toString(),
-											linkedElmVersion.toString())
+											linkedElmId.toString())
 								);
 						}
 					}
@@ -801,7 +826,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 						
 						findElementInSubgraphDiffOrCache(vertexTypeId, subgraphDiff, graphDiff, subgraphCache, 
 								String.format("VertexType for Vertex [%s]", linkedElmFromDiff.getElementId().toString()),
-								VVertexType.class, cache, ignoreTombstone);
+								VVertexType.class, cacheSharedElements, ignoreTombstone);
 					} else if (linkedElmFromDiff instanceof VEdge) {
 						//3.9.2. Edge addition checks
 						VEdge<V, I> edge = (VEdge<V, I>)linkedElmFromDiff;
@@ -813,24 +838,24 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 						//Edge addition checks: EdgeType should be linked to this subgraph (exist either in cache or diff)
 						findElementInSubgraphDiffOrCache(edgeTypeId, subgraphDiff, graphDiff, subgraphCache, 
 								String.format("VertexType for Edge [%s]", linkedElmFromDiff.getElementId().toString()),
-								VEdgeType.class, cache, ignoreTombstone);
+								VEdgeType.class, cacheSharedElements, ignoreTombstone);
 						
 						//Edge addition checks: both Vertexes should be linked to this subgraph (exist either in cache or diff)
 
 						//For relaxedEdgeCheck - do not check vertex if it doesn't exist
-						if ((!relaxedEdgeCheck) || (elementExists(vertexFromId, graphDiff, cache)))
+						if ((!relaxedEdgeCheck) || (elementExists(vertexFromId, graphDiff, cacheSharedElements)))
 						findElementInSubgraphDiffOrCache(vertexFromId, subgraphDiff, graphDiff, subgraphCache, 
 								String.format("VertexFrom for Edge [%s]", linkedElmFromDiff.getElementId().toString()),
-								VVertexType.class, cache, ignoreTombstone);
+								VVertex.class, cacheSharedElements, ignoreTombstone);
 						
-						if ((!relaxedEdgeCheck) || (elementExists(vertexFromId, graphDiff, cache)))
+						if ((!relaxedEdgeCheck) || (elementExists(vertexFromId, graphDiff, cacheSharedElements)))
 						findElementInSubgraphDiffOrCache(vertexToId, subgraphDiff, graphDiff, subgraphCache, 
 								String.format("VertexTo for Edge [%s]", linkedElmFromDiff.getElementId().toString()),
-								VVertexType.class, cache, ignoreTombstone);
+								VVertex.class, cacheSharedElements, ignoreTombstone);
 					}
 					
 					//3.10 Check linked element's versions to be > subgraph cache versions
-					if (linkedElmVersion.compareTo(subgraphCache.getSubgraphVersion()) <= 0) {
+					if (vComparator.compare(linkedElmVersion, subgraphCache.getSubgraphVersion()) <= 0) {
 						throw new GraphMismatchException(
 								String.format("LinkUpdates error: [LinkUpdate id [%s] LinkedElement Id [%s] LinkedElement version [%s] <= cache SubgraphVersion: [%s]]",
 										linkId.toString(),
@@ -841,7 +866,7 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 					}
 					
 					//3.11 Diff's Shared element's version should match with element version in link
-					if (linkedElmFromDiff.getVersion().compareTo(linkedElmVersion) != 0) {
+					if (vComparator.compare(linkedElmFromDiff.getVersion(), linkedElmVersion) != 0) {
 						throw new GraphMismatchException(
 								String.format("LinkUpdates error: [LinkUpdate id [%s] LinkedElement Id [%s] LinkedElement version [%s] != diff ElementVersion: [%s]]",
 										linkId.toString(),
@@ -892,8 +917,8 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 			
 			//4.3. Element delete checks
 			for (VLink<V, I> linkUpdate : subgraphCache.getSubgraphLinksByElementId().values()) {
-				if (!elementSync.getElementIds().contains(linkUpdate.getLinkElementId())) {
-					SharedElementRec<V, I> removedElement = cacheSharedElements.get(linkUpdate.getLinkElementId());
+				if (!elementSync.getElementIds().contains(linkUpdate.getLinkedElementId())) {
+					SharedElementRec<V, I> removedElement = cacheSharedElements.get(linkUpdate.getLinkedElementId());
 					VElement<V, I> elm = removedElement.element;
 					
 					if (elm instanceof VEdgeType) {
@@ -951,32 +976,22 @@ public class GraphDiffChecker<V extends Comparable<V>, I> {
 												diffVertexId.toString())
 										);
 							}
-					} else if (elm instanceof VEdge) {
-						//4.3.3. Edge removal checks
-						//VertexFrom and VertexTo shouldn be deleted (diff or cache, can be deleted by the same diff)
-						VEdge<V, I> edge = (VEdge<V, I>)elm;
+					} else if (elm instanceof VVertex) {
+						//4.3.3. Vertex removal checks
+						VVertex<V, I> vertex = (VVertex<V, I>)elm;
 						
-						I edgeId = edge.getElementId();
-						I vertexFromId = edge.getVertexFromId();
-						I vertexToId = edge.getVertexToId();
+						Set<I> edgesForVertex = diffEdgesByVertex.get(vertex.getElementId());
 						
-						if (!isElementDeleted(vertexFromId, subgraphDiff, subgraphCache))
-							throw new GraphMismatchException(
-									String.format("LinkUpdates error: Edge can't be deleted if it's vertexFrom is not deleted. Subgraph [%s] edgeId [%s] edge linkId [%s] vertexFromId [%s]",
-											subgraphDiff.getName(),
-											edgeId.toString(),
-											linkUpdate.getElementId().toString(),
-											vertexFromId.toString())
-									);
-						
-						if (!isElementDeleted(vertexToId, subgraphDiff, subgraphCache))
-							throw new GraphMismatchException(
-									String.format("LinkUpdates error: Edge can't be deleted if it's vertexTo is not deleted. Subgraph [%s] edgeId [%s] edge linkId [%s] vertexToId [%s]",
-											subgraphDiff.getName(),
-											edgeId.toString(),
-											linkUpdate.getElementId().toString(),
-											vertexToId.toString())
-									);
+						for (I edgeId : edgesForVertex) {
+							if (!isElementDeleted(edgeId, subgraphDiff, subgraphCache))
+								throw new GraphMismatchException(
+										String.format("LinkUpdates error: Vertex can't be deleted if it's edges are not deleted. Subgraph [%s] vertex linkId [%s] vertexFromId [%s] edgeId [%s]",
+												subgraphDiff.getName(),
+												edgeId.toString(),
+												linkUpdate.getElementId().toString(),
+												edgeId.toString())
+										);
+						}
 					}
 				}
 			}

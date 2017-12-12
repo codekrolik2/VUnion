@@ -1,8 +1,6 @@
 package com.github.bamirov.vunion.graphcache;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,6 +21,7 @@ import com.github.bamirov.vunion.graph.filter.IGraphDiffFilter;
 import com.github.bamirov.vunion.graphstream.VGraphDestroyedRecord;
 import com.github.bamirov.vunion.graphstream.VGraphDiff;
 import com.github.bamirov.vunion.graphstream.VGraphElementRecord;
+import com.github.bamirov.vunion.graphstream.VLinkDiff;
 import com.github.bamirov.vunion.graphstream.VSubgraphDiff;
 import com.github.bamirov.vunion.graphstream.VSubgraphSyncRecord;
 import com.github.bamirov.vunion.version.VGraphVersion;
@@ -59,13 +58,19 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 	protected VComparator<V> vComparator = new VComparator<>();
 	
 	protected V getGraphUpdateVersion() {
-		@SuppressWarnings("unchecked")
-		List<V> list = (List<V>)Arrays.asList(new Object[] {
-				subgraphSyncVersion, 
-				destroyRecoverVersion,
-				graphElementRecord.isPresent() ? graphElementRecord.get().getGraphElementUpdateVersion() : null
-		});
-		return Collections.max(list);
+		V max = null;
+		
+		if (subgraphSyncVersion.isPresent())
+			if (vComparator.compare(subgraphSyncVersion.get(), max) > 0)
+				max = subgraphSyncVersion.get();
+		if (destroyRecoverVersion.isPresent())
+			if (vComparator.compare(destroyRecoverVersion.get(), max) > 0)
+				max = destroyRecoverVersion.get();
+		if (graphElementRecord.isPresent())
+			if (vComparator.compare(graphElementRecord.get().getGraphElementUpdateVersion(), max) > 0)
+				max = graphElementRecord.get().getGraphElementUpdateVersion();
+		
+		return max;
 	}
 	
 	@Override
@@ -93,7 +98,7 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 	
 	protected void removeSubgraphCache(VSubgraphCache<V, I> subgraphCache) {
 		for (VLink<V, I> link : subgraphCache.getSubgraphLinksByElementId().values())
-			decrementReferenceCount(link.getElementId());
+			decrementReferenceCount(link.getLinkedElementId());
 		
 		subgraphs.remove(subgraphCache.name);
 	}
@@ -108,30 +113,21 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 						String.format("Graph name doesn't match: diff [%s] cache [%s]", 
 								diff.getGraphName(), graphName));
 			
-			//2. Update destroyed status
+			//2. Check graph diff
+			//TODO: Check graph diff - after cache is updated, fix
+			graphDiffChecker.sanityCheckGraphDiff(this, diff, areEdgesConsistent);
+
+			//3. Update destroyed status
 			if (diff.getDestroyedRecord().isPresent()) {
 				destroyRecoverVersion = Optional.of(diff.getDestroyedRecord().get().getDestroyRecoverVersion());
 				isDestroyed = diff.getDestroyedRecord().get().isDestroyed();
 				
 				//Remove all data (except for delete info)
+				subgraphSyncVersion = Optional.empty();
 				graphElementRecord = Optional.empty();
 				sharedElements.clear();
 				subgraphs.clear();
 			}
-			
-			//3. Check graph diff
-			//TODO: Check graph diff - after cache is updated, fix
-			graphDiffChecker.sanityCheckGraphDiff(this, diff, areEdgesConsistent);
-			
-			/*
-			  TODO: This is how it initially was, do I need it here or above?
-			 
-			 if (diff.getDestroyedRecord().isPresent()) {
-				//If destroyed record is present, remove all data (except for destroyed info)
-				graphElement = Optional.empty();
-				sharedElements.clear();
-				subgraphs.clear();
-			}*/
 			
 			//4. Update graph element
 			if (diff.getGraphElementRecord().isPresent()) {
@@ -148,7 +144,7 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 					graphElementRecord = Optional.of(geRecord);
 				}
 			}
-	
+			
 			//5. Subgraphs sync
 			if (diff.getSubgraphSync().isPresent()) {
 				VSubgraphSyncRecord<V> ss = diff.getSubgraphSync().get();
@@ -189,7 +185,12 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 	}
 	
 	@Override
-	public VGraphDiff<V, I> getGraphDiff(VGraphVersion<V> originalFrom, IGraphDiffFilter<V, I> diffFilter) throws GraphMismatchException {
+	public VGraphDiff<V, I> getGraphDiff(VGraphVersion<V> originalFrom) throws GraphMismatchException {
+		return getGraphDiff(originalFrom, Optional.empty());
+	}
+	
+	@Override
+	public VGraphDiff<V, I> getGraphDiff(VGraphVersion<V> originalFrom, Optional<IGraphDiffFilter<V, I>> diffFilter) throws GraphMismatchException {
 		updateLock.readLock().lock();
 		try {
 			VGraphVersion<V> from = originalFrom;
@@ -240,15 +241,22 @@ public class VGraphCache<V extends Comparable<V>, I> implements IGraphCache<V, I
 					
 					for (VSubgraphCache<V, I> subgraphCache : subgraphs.values()) {
 						//1) Filter Subgraphs by name
-						if (diffFilter.isSubgraphAllowed(subgraphCache.getName())) {
+						if (!diffFilter.isPresent() || diffFilter.get().isSubgraphAllowed(subgraphCache.getName())) {
 							V subgraphVersion = from.getSubgraphVersions().get(subgraphCache.getName());
 							
-							VSubgraphDiff<V, I> subgraphDiff = subgraphCache.getDiff(this, subgraphVersion, diffFilter, typeFilterInfo);
-							subgraphsMap.put(subgraphCache.getName(), subgraphDiff);
-							
-							if (subgraphDiff.getLinkUpdatesByElementId().isPresent())
-							for (I elementId : subgraphDiff.getLinkUpdatesByElementId().get().keySet())
-								includedElements.add(elementId);
+							Optional<VSubgraphDiff<V, I>> subgraphDiff = subgraphCache.getDiff(this, subgraphVersion, diffFilter, typeFilterInfo);
+							if (subgraphDiff.isPresent()) {
+								subgraphsMap.put(subgraphCache.getName(), subgraphDiff.get());
+								
+								if (subgraphDiff.get().getLinkUpdatesByElementId().isPresent())
+								for (Entry<I, VLinkDiff<V, I>> ent : subgraphDiff.get().getLinkUpdatesByElementId().get().entrySet()) {
+									I elementId = ent.getKey();
+									VLinkDiff<V, I> val = ent.getValue();
+									
+									if (val.getLinkedElementVersionUpdate().isPresent())
+										includedElements.add(elementId);
+								}
+							}
 						}
 					}
 					
