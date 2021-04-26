@@ -36,7 +36,7 @@ class VSubgraphCache<V extends Comparable<V>, I> {
 	
 	//subgraphVersionTo is always max subgraphVersion
 	protected V subgraphVersionTo;
-	//subgraphVersionTo will not necessarily corellate with existing links,
+	//subgraphVersionTo will not necessarily correlate with existing links,
 	//because filters might filter out links and elements inside subgraphs 
 	
 	protected Optional<V> elementSyncVersion = Optional.empty();
